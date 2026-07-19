@@ -87,6 +87,10 @@ $checks = [
         'gh release create',
         'gh release upload',
         'packages: write',
+        'GH_REPO: ${{ github.repository }}',
+        'Checkout do commit da release',
+        '--repo "${GH_REPO}"',
+        'Verificar release publicada',
         'VERSION',
     ],
 ];

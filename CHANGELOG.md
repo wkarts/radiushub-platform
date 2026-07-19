@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.3.5 — 2026-07-19
+
+### Corrigido
+
+- job final da release realiza checkout próprio do commit versionado;
+- GitHub CLI recebe `GH_REPO` e `--repo`, eliminando dependência implícita de `.git`;
+- publicação valida que a tag aponta para o commit aprovado;
+- artefatos são verificados antes e depois da criação da release;
+- comandos de criação e upload possuem retentativa limitada para falhas transitórias;
+- execução manual recupera a tag `v1.3.4` que ficou sem GitHub Release.
+
+### Compatibilidade
+
+- aplicação, banco, Docker, CloudPanel, FreeRADIUS, MikroTik, vouchers e Asaas permanecem inalterados.
+
 ## 1.3.4 — 2026-07-19
 
 ### Corrigido

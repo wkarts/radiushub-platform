@@ -1,4 +1,4 @@
-# RadiusHub Platform 1.3.4
+# RadiusHub Platform 1.3.5
 
 Plataforma web multi-tenant em PHP/Laravel para administrar empresas, clientes, planos, Hotspot, PPPoE, vouchers, FreeRADIUS, equipamentos MikroTik por **SSH Key**, financeiro e integração Asaas.
 
@@ -102,6 +102,7 @@ A atualização é corretiva e preserva as integrações MikroTik SSH Key, FreeR
 - [Upgrade 1.3.1 → 1.3.2](docs/UPGRADE_1.3.1_TO_1.3.2.md)
 - [Upgrade 1.3.2 → 1.3.3](docs/UPGRADE_1.3.2_TO_1.3.3.md)
 - [Upgrade 1.3.3 → 1.3.4](docs/UPGRADE_1.3.3_TO_1.3.4.md)
+- [Upgrade 1.3.4 → 1.3.5](docs/UPGRADE_1.3.4_TO_1.3.5.md)
 
 ## Diagnóstico
 
@@ -170,3 +171,13 @@ chmod +x scripts/upgrade-1.3.3-to-1.3.4.sh
 ```
 
 A versão 1.3.4 cria automaticamente a tag, a GitHub Release, os pacotes com checksum e as imagens Docker semânticas após o CI aprovado da branch `main`. O processo é idempotente: uma versão já publicada não é duplicada.
+
+## Atualização 1.3.4 → 1.3.5
+
+```bash
+chmod +x scripts/upgrade-1.3.4-to-1.3.5.sh
+./scripts/upgrade-1.3.4-to-1.3.5.sh
+```
+
+A versão 1.3.5 corrige a etapa final da GitHub Release: o job de publicação agora faz checkout do commit versionado, define explicitamente `GH_REPO`, usa `--repo` em todos os comandos `gh release` e verifica a tag, o commit e os quatro artefatos publicados.
+

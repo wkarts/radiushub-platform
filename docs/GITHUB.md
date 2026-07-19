@@ -2,7 +2,7 @@
 
 ## Publicação automática
 
-A partir da versão 1.3.4, não é necessário criar a tag manualmente depois do merge.
+A partir da versão 1.3.5, não é necessário criar a tag manualmente depois do merge.
 
 O fluxo é:
 
@@ -65,9 +65,9 @@ O workflow também aceita uma tag `vX.Y.Z` enviada manualmente.
 ## Imagens
 
 ```text
-ghcr.io/wkarts/radiushub-app:1.3.4
-ghcr.io/wkarts/radiushub-web:1.3.4
-ghcr.io/wkarts/radiushub-freeradius:1.3.4
+ghcr.io/wkarts/radiushub-app:1.3.5
+ghcr.io/wkarts/radiushub-web:1.3.5
+ghcr.io/wkarts/radiushub-freeradius:1.3.5
 ```
 
 Também são publicadas as tags `1.3`, `latest` e `sha-*`.
@@ -83,3 +83,26 @@ actions: read
 ```
 
 O repositório precisa permitir que o `GITHUB_TOKEN` grave conteúdo e pacotes conforme a política definida em `Settings > Actions > General`.
+
+## Contexto explícito do GitHub CLI
+
+Cada job do GitHub Actions usa um runner independente. O job `publish` realiza seu próprio checkout do commit aprovado e também define `GH_REPO=${{ github.repository }}`. Todos os comandos `gh release` recebem `--repo`, evitando dependência implícita de um diretório `.git`.
+
+Antes da publicação, o workflow confirma que:
+
+- o diretório atual é um repositório Git válido;
+- o commit local corresponde ao commit aprovado;
+- a tag remota resolve para o mesmo commit;
+- os checksums locais são válidos.
+
+Depois da publicação, confirma a existência da release e dos quatro artefatos esperados.
+
+### Recuperar a release 1.3.4 que ficou apenas com tag
+
+Depois de incorporar a versão 1.3.5, execute manualmente `Release automática` com:
+
+- `ref`: `f3cccaf5b3910d366d30599b2037baf7be3d732c`;
+- `rebuild_existing`: `false`.
+
+O workflow lerá `VERSION=1.3.4` naquele commit, reutilizará a tag `v1.3.4` existente e criará a release ausente.
+
