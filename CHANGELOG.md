@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.3.2 — 2026-07-19
+
+### Corrigido
+
+- controller base do Laravel restaura `AuthorizesRequests` e `ValidatesRequests`;
+- criação de empresa volta a executar policies sem erro de método inexistente;
+- migration do webhook Asaas cria índice substituto de `tenant_id` antes de remover o índice único legado no MySQL;
+- migrations multiempresa e webhook passam a tolerar retomada após DDL parcialmente confirmado pelo MySQL;
+- workflow prepara `.env.testing` e exibe avisos completos do PHPUnit;
+- GitHub Actions foram atualizadas para runtimes Node.js 24.
+
+### Compatibilidade
+
+- nenhuma funcionalidade existente foi removida;
+- arquitetura Laravel/Blade, MySQL, PostgreSQL, Docker, CloudPanel, FreeRADIUS, MikroTik SSH e Asaas foram preservados.
+
 ## 1.3.1 — 2026-07-19
 
 ### Corrigido

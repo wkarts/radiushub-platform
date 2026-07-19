@@ -1,4 +1,4 @@
-# RadiusHub Platform 1.3.1
+# RadiusHub Platform 1.3.2
 
 Plataforma web multi-tenant em PHP/Laravel para administrar empresas, clientes, planos, Hotspot, PPPoE, vouchers, FreeRADIUS, equipamentos MikroTik por **SSH Key**, financeiro e integração Asaas.
 
@@ -99,6 +99,7 @@ A atualização é corretiva e preserva as integrações MikroTik SSH Key, FreeR
 - [GitHub, GHCR e releases](docs/GITHUB.md)
 - [Upgrade 1.2 → 1.3](docs/UPGRADE_1.2_TO_1.3.md)
 - [Upgrade 1.3.0 → 1.3.1](docs/UPGRADE_1.3.0_TO_1.3.1.md)
+- [Upgrade 1.3.1 → 1.3.2](docs/UPGRADE_1.3.1_TO_1.3.2.md)
 
 ## Diagnóstico
 
@@ -138,3 +139,13 @@ php artisan asaas:webhooks:sync
 ```
 
 Consulte `docs/ASAAS_WEBHOOKS_MULTIEMPRESA.md`.
+
+
+## Atualização 1.3.1 → 1.3.2
+
+```bash
+chmod +x scripts/upgrade-1.3.1-to-1.3.2.sh
+./scripts/upgrade-1.3.1-to-1.3.2.sh
+```
+
+A atualização preserva `.env`, `APP_KEY`, dados e integrações existentes. As migrations corrigidas são retomáveis após falhas parciais de DDL no MySQL.

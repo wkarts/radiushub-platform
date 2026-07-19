@@ -1,34 +1,47 @@
-# Validação da entrega 1.3.1
+# Validação da entrega 1.3.2
 
-## Logs analisados
+## Log analisado
 
-A correção foi baseada no workflow GitHub Actions `80359379367`.
+Workflow GitHub Actions `80361125869`.
 
-Falhas confirmadas:
+Falhas confirmadas nos logs:
 
-- PHP 8.3 e 8.4: 5 testes falhando por sanitização incompleta, cache Blade ausente e seleção de tenant;
-- MySQL 8.4: erro `1553` ao remover índice ainda necessário para a FK;
-- PostgreSQL 17: migrations, seeder, doctor e renderização RADIUS aprovados;
-- Docker app, web e FreeRADIUS: builds aprovados.
+- PHP 8.3 e 8.4: `CompanyController::authorize()` inexistente devido ao controller base incompleto;
+- efeito secundário: empresa não criada e `ModelNotFoundException` no teste de provisionamento;
+- MySQL 8.4: erro 1553 ao remover índice do webhook ainda utilizado pela foreign key `tenant_id`;
+- warnings do PHPUnit apresentados de forma truncada;
+- avisos de runtime antigo nas ações GitHub.
+
+Os jobs PostgreSQL 17 e as imagens Docker app, web e FreeRADIUS concluíram sem a falha funcional acima.
+
+## Correções verificadas estaticamente
+
+- controller base herda `Illuminate\Routing\Controller`;
+- traits `AuthorizesRequests` e `ValidatesRequests` restaurados;
+- migration do webhook cria índice substituto em DDL anterior ao `dropUnique`;
+- migrations 000700 e 000800 possuem retomada idempotente para DDL parcial conhecido;
+- retomada da migration 000700 valida a estrutura antes de concluir somente os índices;
+- tokens e índices do webhook não são recriados quando já existem;
+- `.env.testing` é preparado no CI;
+- PHPUnit executa com `--display-warnings`;
+- ações checkout/cache/Docker atualizadas;
+- testes de regressão adicionados para o controller base e ordem de DDL.
 
 ## Validações executadas no ambiente de geração
 
-- sintaxe de 320 arquivos PHP com `php -l`, incluindo aplicação, testes e SDK Asaas embarcado;
-- teste isolado do `SensitiveDataSanitizer` com senha, segredo e bloco `BEGIN PRIVATE KEY`;
-- sintaxe dos 16 scripts Shell com `bash -n`;
-- parsing de `docker-compose.yml`, workflows e Dependabot com PyYAML;
-- parsing de `composer.json` e demais arquivos JSON;
-- verificação da ordem segura dos índices na migration multiempresa;
-- verificação de diretórios Blade, sessão, cache e logs no pacote;
-- busca pelas credenciais expostas nos logs e prints fornecidos;
-- geração da árvore do projeto, manifesto SHA-256 e validação integral do ZIP.
+- sintaxe de todos os arquivos PHP com `php -l`;
+- sintaxe de todos os scripts Bash com `bash -n`;
+- parsing de JSON e YAML;
+- verificação de referências de versão;
+- busca por credenciais expostas e blocos de chave privada;
+- geração do manifesto SHA-256 e árvore do projeto;
+- teste de integridade do ZIP.
 
-## Não executado neste ambiente
+## Validações delegadas ao CI/homologação
 
-- `composer install` e PHPUnit, porque Composer e acesso DNS ao Packagist não estavam disponíveis;
-- build real das imagens, porque Docker Engine não estava disponível;
-- migrations reais em MySQL/PostgreSQL;
-- `freeradius -XC`, porque o binário FreeRADIUS não estava instalado;
-- chamadas reais ao Asaas ou MikroTik.
+O ambiente de geração não possui Composer, Docker Engine, MySQL ou PostgreSQL. Por isso, as seguintes verificações ficam configuradas no workflow:
 
-O workflow incluído executa novamente PHP 8.3/8.4, MySQL 8.4, PostgreSQL 17 e as três imagens Docker após o push.
+- Composer e PHPUnit em PHP 8.3/8.4;
+- migrations, seeders e doctor no MySQL 8.4 e PostgreSQL 17;
+- renderização das configurações FreeRADIUS;
+- build das imagens app, web e FreeRADIUS.
