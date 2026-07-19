@@ -1,29 +1,323 @@
-name: Release
+name: Release automática
 
 on:
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
   push:
     tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag ou commit que será avaliado
+        required: false
+        default: main
+        type: string
+      rebuild_existing:
+        description: Recriar os artefatos de uma release já existente
+        required: false
+        default: false
+        type: boolean
 
 permissions:
+  actions: read
   contents: write
+  packages: write
+
+concurrency:
+  group: release-${{ github.repository }}
+  cancel-in-progress: false
 
 jobs:
-  release:
+  prepare:
+    name: Preparar versão
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main'
+      )
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.release.outputs.should_release }}
+      update_existing: ${{ steps.release.outputs.update_existing }}
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+      commit_sha: ${{ steps.release.outputs.commit_sha }}
+      major_minor: ${{ steps.release.outputs.major_minor }}
+      reason: ${{ steps.release.outputs.reason }}
+    steps:
+      - name: Checkout do commit aprovado no CI
+        if: github.event_name == 'workflow_run'
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Checkout da tag enviada
+        if: github.event_name == 'push'
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Checkout manual
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+
+      - name: Validar consistência da versão
+        run: php scripts/check-version-integrity.php
+
+      - name: Resolver tag e release
+        id: release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REBUILD_EXISTING: ${{ github.event_name == 'workflow_dispatch' && inputs.rebuild_existing || false }}
+        run: |
+          set -Eeuo pipefail
+
+          version="$(tr -d '[:space:]' < VERSION)"
+          tag="v${version}"
+          major_minor="${version%.*}"
+          current_sha="$(git rev-parse HEAD)"
+
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME}" != "${tag}" ]]; then
+            echo "::error::A tag ${GITHUB_REF_NAME} não corresponde ao VERSION=${version}."
+            exit 1
+          fi
+
+          git fetch --force --tags origin
+
+          tag_exists=false
+          tagged_sha=""
+          if git rev-parse -q --verify "refs/tags/${tag}^{commit}" >/dev/null; then
+            tag_exists=true
+            tagged_sha="$(git rev-list -n 1 "${tag}")"
+          fi
+
+          release_exists=false
+          if gh release view "${tag}" >/dev/null 2>&1; then
+            release_exists=true
+          fi
+
+          should_release=false
+          update_existing=false
+          release_sha="${current_sha}"
+          reason=""
+
+          if [[ "${tag_exists}" == "false" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "${tag}" "${current_sha}" -m "RadiusHub Platform ${version}"
+            git push origin "refs/tags/${tag}"
+            tagged_sha="${current_sha}"
+            should_release=true
+            reason="nova versão ${version}"
+          elif [[ "${release_exists}" == "false" ]]; then
+            release_sha="${tagged_sha}"
+            should_release=true
+            reason="tag ${tag} existente sem GitHub Release"
+          elif [[ "${REBUILD_EXISTING}" == "true" ]]; then
+            release_sha="${tagged_sha}"
+            should_release=true
+            update_existing=true
+            reason="reconstrução manual da release ${tag}"
+          else
+            release_sha="${tagged_sha}"
+            reason="release ${tag} já publicada; nenhuma ação necessária"
+          fi
+
+          {
+            echo "should_release=${should_release}"
+            echo "update_existing=${update_existing}"
+            echo "version=${version}"
+            echo "tag=${tag}"
+            echo "commit_sha=${release_sha}"
+            echo "major_minor=${major_minor}"
+            echo "reason=${reason}"
+          } >> "${GITHUB_OUTPUT}"
+
+          {
+            echo "### Preparação da release"
+            echo
+            echo "- Versão: \`${version}\`"
+            echo "- Tag: \`${tag}\`"
+            echo "- Commit da release: \`${release_sha}\`"
+            echo "- Publicar: \`${should_release}\`"
+            echo "- Motivo: ${reason}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  package:
+    name: Empacotar código-fonte
+    needs: prepare
+    if: needs.prepare.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Preparar pacote
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          mkdir -p dist/radiushub-platform-${version}
-          rsync -a ./ dist/radiushub-platform-${version}/ \
-            --exclude .git --exclude dist --exclude .env --exclude vendor \
-            --exclude 'storage/logs/*' --exclude 'storage/framework/*'
-          tar -C dist -czf "dist/radiushub-platform-${version}.tar.gz" "radiushub-platform-${version}"
-          (cd dist && sha256sum "radiushub-platform-${version}.tar.gz" > "radiushub-platform-${version}.tar.gz.sha256")
-      - uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
-          files: |
-            dist/*.tar.gz
-            dist/*.sha256
+          ref: ${{ needs.prepare.outputs.commit_sha }}
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+
+      - name: Validar versão e migrations
+        run: |
+          php scripts/check-version-integrity.php
+          php scripts/check-migration-integrity.php
+
+      - name: Gerar ZIP, TAR.GZ, checksums e metadados
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          version="${{ needs.prepare.outputs.version }}"
+          base="radiushub-platform-${version}"
+          mkdir -p dist
+
+          git archive --format=zip --prefix="${base}/" HEAD \
+            -o "dist/${base}.zip"
+          git archive --format=tar --prefix="${base}/" HEAD \
+            | gzip -9 > "dist/${base}.tar.gz"
+
+          (
+            cd dist
+            sha256sum "${base}.zip" "${base}.tar.gz" > SHA256SUMS
+          )
+
+          cat > dist/RELEASE-METADATA.json <<JSON
+          {
+            "name": "RadiusHub Platform",
+            "version": "${version}",
+            "tag": "${{ needs.prepare.outputs.tag }}",
+            "commit": "${{ needs.prepare.outputs.commit_sha }}",
+            "repository": "${GITHUB_REPOSITORY}",
+            "generated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          JSON
+
+          (cd dist && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-assets-${{ needs.prepare.outputs.version }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  docker:
+    name: Imagem ${{ matrix.name }}
+    needs: prepare
+    if: needs.prepare.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: radiushub-app
+            dockerfile: docker/app/Dockerfile
+          - name: radiushub-web
+            dockerfile: docker/nginx/Dockerfile
+          - name: radiushub-freeradius
+            dockerfile: docker/freeradius/Dockerfile
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.commit_sha }}
+          fetch-depth: 0
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
+          tags: |
+            type=raw,value=${{ needs.prepare.outputs.version }}
+            type=raw,value=${{ needs.prepare.outputs.major_minor }}
+            type=raw,value=latest
+            type=sha,prefix=sha-
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ needs.prepare.outputs.version }}
+            VCS_REF=${{ needs.prepare.outputs.commit_sha }}
+          cache-from: type=gha,scope=release-${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=release-${{ matrix.name }}
+
+  publish:
+    name: Publicar GitHub Release
+    needs: [prepare, package, docker]
+    if: needs.prepare.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-assets-${{ needs.prepare.outputs.version }}
+          path: dist
+
+      - name: Validar artefatos
+        run: |
+          cd dist
+          sha256sum -c SHA256SUMS
+
+      - name: Criar ou atualizar release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          tag="${{ needs.prepare.outputs.tag }}"
+          version="${{ needs.prepare.outputs.version }}"
+
+          if gh release view "${tag}" >/dev/null 2>&1; then
+            gh release upload "${tag}" dist/* --clobber
+          else
+            gh release create "${tag}" dist/* \
+              --verify-tag \
+              --target "${{ needs.prepare.outputs.commit_sha }}" \
+              --title "RadiusHub Platform ${version}" \
+              --generate-notes \
+              --latest
+          fi
+
+          {
+            echo "### Release publicada"
+            echo
+            echo "- Tag: \`${tag}\`"
+            echo "- Versão: \`${version}\`"
+            echo "- Commit: \`${{ needs.prepare.outputs.commit_sha }}\`"
+            echo "- URL: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${tag}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  no-release:
+    name: Release já existente
+    needs: prepare
+    if: needs.prepare.outputs.should_release == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "${{ needs.prepare.outputs.reason }}"

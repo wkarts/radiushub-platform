@@ -1,51 +1,55 @@
-# Validação da entrega 1.3.3
+# Validação da entrega 1.3.4
 
-## Log analisado
+## Logs analisados
 
-Workflow GitHub Actions `80393755885`.
+Workflows:
 
-## Causa-raiz confirmada
+- `80413355503`: CI da branch de correção;
+- `80413540568`: CI após o merge na `main`;
+- `80413540577`: publicação das imagens Docker após o merge.
 
-O pacote 1.3.2 continha simultaneamente duas migrations com a mesma sequência `2026_07_19_000800`:
+Resultados confirmados nos logs:
 
-- `2026_07_19_000800_secure_asaas_webhook_per_gateway.php`;
-- `2026_07_19_000800_secure_asaas_webhooks_by_gateway.php`.
+- PHP 8.3: 30 testes aprovados, 106 asserções;
+- PHP 8.4: 30 testes aprovados, 106 asserções;
+- MySQL 8.4: migrations, seeders, doctor e renderização FreeRADIUS aprovados;
+- PostgreSQL 17: migrations, seeders, doctor e renderização FreeRADIUS aprovados;
+- imagens app, web e FreeRADIUS construídas/publicadas;
+- nenhuma execução do workflow de release.
 
-A primeira migration concluía corretamente as alterações do webhook. Em seguida, a segunda tentava adicionar novamente as mesmas colunas. Isso produziu:
+## Causa-raiz
 
-- SQLite/PHP 8.3 e 8.4: `duplicate column name: webhook_public_token`;
-- MySQL 8.4: `Duplicate column name 'webhook_public_token'`;
-- PostgreSQL 17: `column "webhook_public_token" already exists`.
+O workflow `.github/workflows/release.yml` era acionado somente por:
 
-Os 13 testes de feature falharam pelo mesmo erro de bootstrap do banco; não eram 13 defeitos independentes. As três imagens Docker foram construídas com sucesso.
+```yaml
+push:
+  tags: ['v*.*.*']
+```
 
-## Correção aplicada
+O merge gerou um push para `refs/heads/main`, não uma tag. O workflow `docker-publish.yml` executou normalmente, porém nenhum mecanismo criou `v1.3.3`; por isso o workflow de release nunca foi iniciado.
 
-- removida a migration duplicada plural;
-- preservada a migration singular, idempotente e retomável;
-- adicionado `scripts/check-migration-integrity.php`;
-- o verificador rejeita nomes fora do padrão, sequências duplicadas e a migration obsoleta;
-- adicionado teste unitário de inventário de migrations;
-- CI executa `composer migrations:check` em PHP, MySQL e PostgreSQL;
-- instaladores, atualizadores e entrypoint Docker validam as migrations antes de executar `artisan migrate`;
-- upgrade 1.3.2 → 1.3.3 remove o arquivo obsoleto com backup antes da migração.
+## Correção
 
-## Validações executadas neste ambiente
+- release acionada por `workflow_run` após o `CI` da `main`;
+- filtro exige conclusão `success`, evento `push` e branch `main`;
+- `VERSION` é a fonte canônica;
+- tag é criada no commit aprovado;
+- operação é idempotente;
+- ZIP, TAR.GZ, checksums e metadados são publicados;
+- imagens semânticas são publicadas dentro do mesmo fluxo, pois eventos gerados pelo `GITHUB_TOKEN` não iniciam outros workflows;
+- execução por tag e `workflow_dispatch` permanecem disponíveis como contingência;
+- `scripts/check-version-integrity.php` impede divergência de versão.
 
-- integridade do inventário de migrations;
-- sintaxe de todos os arquivos PHP com `php -l`;
-- sintaxe dos scripts Bash com `bash -n`;
-- parsing dos arquivos JSON e YAML;
-- conferência das referências de versão;
-- busca por credenciais expostas e chaves privadas;
-- geração de árvore e manifesto SHA-256;
-- teste de integridade do ZIP.
+## Validações locais
 
-## Validações executadas pelo workflow após o push
+- sintaxe de 326 arquivos PHP;
+- sintaxe de 19 scripts Bash;
+- parsing de 3 arquivos JSON e 5 arquivos YAML;
+- verificação de versão;
+- verificação do inventário de migrations;
+- teste positivo e negativo do verificador de versão;
+- smoke test dos comandos `git archive` para ZIP e TAR.GZ;
+- manifesto SHA-256;
+- integridade do ZIP.
 
-- Composer e PHPUnit em PHP 8.3 e 8.4;
-- migrations, seeders, doctor e renderização FreeRADIUS no MySQL 8.4;
-- migrations, seeders, doctor e renderização FreeRADIUS no PostgreSQL 17;
-- build das imagens app, web e FreeRADIUS.
-
-O ambiente local não possui Composer, Docker Engine, MySQL ou PostgreSQL. Portanto, a matriz completa não foi executada localmente; a causa-raiz, contudo, foi reproduzida diretamente pelos logs e removida do inventário de migrations.
+A execução real do novo `workflow_run`, criação da tag, publicação no GHCR e GitHub Release ocorrerá após o merge desta versão na `main`.

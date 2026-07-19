@@ -75,6 +75,9 @@
         "migrations:check": [
             "@php scripts/check-migration-integrity.php"
         ],
+        "version:check": [
+            "@php scripts/check-version-integrity.php"
+        ],
         "doctor": [
             "@php artisan radiushub:doctor"
         ],

@@ -5,13 +5,25 @@ cd "$PROJECT_ROOT"
 
 REPOSITORY="${1:-wkarts/radiushub-platform}"
 VISIBILITY="${GITHUB_VISIBILITY:-private}"
+CREATE_TAG="${CREATE_TAG:-false}"
 RELEASE_TAG="${RELEASE_TAG:-v$(cat VERSION)}"
-[[ "${2:-}" == "--public" ]] && VISIBILITY=public
+
+for argument in "${@:2}"; do
+  case "$argument" in
+    --public) VISIBILITY=public ;;
+    --private) VISIBILITY=private ;;
+    --tag-now) CREATE_TAG=true ;;
+    *) die "Argumento desconhecido: $argument" ;;
+  esac
+done
 
 command_exists git || die "Git não encontrado."
 command_exists gh || die "GitHub CLI (gh) não encontrado."
 gh auth status >/dev/null 2>&1 || die "Autentique primeiro com: gh auth login"
 [[ ! -f .env ]] || warn "O arquivo .env existe, mas está protegido pelo .gitignore. Confirme com git status antes do push."
+
+php scripts/check-version-integrity.php
+php scripts/check-migration-integrity.php
 
 if [[ ! -d .git ]]; then
   git init
@@ -34,10 +46,14 @@ else
     --description "Plataforma Laravel multi-tenant para MikroTik, FreeRADIUS e cobrança Asaas"
 fi
 
-if ! git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
-  git tag -a "$RELEASE_TAG" -m "RadiusHub Platform $(cat VERSION)"
+if [[ "$CREATE_TAG" == "true" ]]; then
+  if ! git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+    git tag -a "$RELEASE_TAG" -m "RadiusHub Platform $(cat VERSION)"
+  fi
+  git push origin "$RELEASE_TAG"
+  log "Tag $RELEASE_TAG enviada. O workflow de release fará publicação idempotente."
+else
+  log "Push concluído. Após o CI da branch main, o workflow criará automaticamente a tag v$(cat VERSION), a GitHub Release e as imagens semânticas."
 fi
-git push origin "$RELEASE_TAG"
 
 log "Repositório publicado: https://github.com/$REPOSITORY"
-log "A tag $RELEASE_TAG acionará o release e a publicação das imagens no GHCR."
