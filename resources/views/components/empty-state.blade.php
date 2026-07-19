@@ -1,0 +1,1 @@
+<div class="empty-state"><div class="empty-icon">◎</div><div class="empty-title">{{ $title ?? 'Nenhum registro encontrado' }}</div><div class="empty-text">{{ $text ?? 'Ajuste os filtros ou cadastre o primeiro item.' }}</div></div>

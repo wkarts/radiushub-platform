@@ -1,0 +1,2 @@
+# Execute como o usuário do site. Ajuste os caminhos.
+* * * * * cd __PROJECT_ROOT__ && __PHP_BIN__ artisan schedule:run >> /dev/null 2>&1
