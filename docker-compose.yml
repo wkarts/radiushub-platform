@@ -1,0 +1,140 @@
+name: radiushub
+
+x-app-image: &app-image
+  image: ${RADIUSHUB_REGISTRY:-ghcr.io/wkarts}/radiushub-app:${RADIUSHUB_TAG:-1.2.0}
+  build:
+    context: .
+    dockerfile: docker/app/Dockerfile
+    args:
+      VERSION: ${RADIUSHUB_TAG:-1.2.0}
+      VCS_REF: ${VCS_REF:-local}
+      BUILD_DATE: ${BUILD_DATE:-local}
+
+x-app-common: &app-common
+  <<: *app-image
+  env_file: .env
+  restart: unless-stopped
+  volumes:
+    - app_storage:/var/www/html/storage
+  networks: [backend]
+
+services:
+  app:
+    <<: *app-common
+    environment:
+      AUTO_MIGRATE: ${AUTO_MIGRATE:-true}
+      AUTO_SEED: ${AUTO_SEED:-true}
+    healthcheck:
+      test: ["CMD-SHELL", "php -r 'exit(file_exists(\"bootstrap/cache/config.php\") ? 0 : 1);'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  web:
+    image: ${RADIUSHUB_REGISTRY:-ghcr.io/wkarts}/radiushub-web:${RADIUSHUB_TAG:-1.2.0}
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile
+      args:
+        VERSION: ${RADIUSHUB_TAG:-1.2.0}
+        VCS_REF: ${VCS_REF:-local}
+        BUILD_DATE: ${BUILD_DATE:-local}
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-8080}:80"
+    volumes:
+      - app_storage:/var/www/html/storage:ro
+    networks: [backend]
+
+  worker:
+    <<: *app-common
+    environment:
+      AUTO_MIGRATE: "false"
+      AUTO_SEED: "false"
+    command: ["sh", "-lc", "php artisan queue:work \"${QUEUE_CONNECTION:-redis}\" --queue=webhooks,default --sleep=2 --tries=5 --timeout=120 --max-time=3600"]
+
+  scheduler:
+    <<: *app-common
+    environment:
+      AUTO_MIGRATE: "false"
+      AUTO_SEED: "false"
+    command: ["php", "artisan", "schedule:work"]
+
+  freeradius:
+    image: ${RADIUSHUB_REGISTRY:-ghcr.io/wkarts}/radiushub-freeradius:${RADIUSHUB_TAG:-1.2.0}
+    build:
+      context: .
+      dockerfile: docker/freeradius/Dockerfile
+      args:
+        VERSION: ${RADIUSHUB_TAG:-1.2.0}
+        VCS_REF: ${VCS_REF:-local}
+        BUILD_DATE: ${BUILD_DATE:-local}
+    env_file: .env
+    restart: unless-stopped
+    ports:
+      - "${RADIUS_BIND_ADDRESS:-0.0.0.0}:${RADIUS_AUTH_PORT:-1812}:1812/udp"
+      - "${RADIUS_BIND_ADDRESS:-0.0.0.0}:${RADIUS_ACCT_PORT:-1813}:1813/udp"
+    networks: [backend]
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - redis_data:/data
+    networks: [backend]
+
+  postgres:
+    image: postgres:17-alpine
+    profiles: ["postgres"]
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks: [backend]
+
+  mysql:
+    image: mysql:8.4
+    profiles: ["mysql"]
+    restart: unless-stopped
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-this-root-password}
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u${DB_USERNAME} -p${DB_PASSWORD} --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks: [backend]
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  mysql_data:
+  redis_data:
+  app_storage:

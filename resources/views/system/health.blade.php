@@ -1,0 +1,6 @@
+@extends('layouts.app')
+@section('title','Saúde do sistema')
+@section('content')
+<x-page-header title="Saúde do sistema" description="Conectividade da aplicação, filas, FreeRADIUS e equipamentos cadastrados." />
+<div class="dashboard-grid"><div class="card"><div class="card-header"><div><div class="card-title">Serviços internos</div><div class="card-subtitle">Verificações executadas no carregamento</div></div></div><div class="card-body"><div class="health-list">@foreach($checks as $name=>$check)<div class="health-item"><div><div class="cell-title">{{ strtoupper($name) }}</div><div class="cell-subtitle">{{ $check['message'] }}</div></div><x-status-badge :value="$check['ok']?'online':'offline'" /></div>@endforeach</div></div></div><div class="card"><div class="card-header"><div><div class="card-title">MikroTiks</div><div class="card-subtitle">Resultado do último teste agendado</div></div></div><div class="card-body"><div class="health-list">@forelse($devices as $device)<div class="health-item"><div><div class="cell-title">{{ $device->name }}</div><div class="cell-subtitle">{{ $device->last_error ?: ($device->last_seen_at?'Visto em '.$device->last_seen_at->format('d/m/Y H:i'):'Nunca testado') }}</div></div><x-status-badge :value="$device->status" /></div>@empty<x-empty-state />@endforelse</div></div></div></div>
+@endsection

@@ -1,0 +1,3 @@
+@if(session('success'))<div class="alert alert-success" data-auto-dismiss><span>{{ session('success') }}</span><button class="btn btn-ghost btn-sm" data-alert-close>✕</button></div>@endif
+@if(session('error'))<div class="alert alert-danger"><span>{{ session('error') }}</span><button class="btn btn-ghost btn-sm" data-alert-close>✕</button></div>@endif
+@if($errors->any())<div class="alert alert-danger"><div><strong>Revise os dados:</strong><ul style="margin:6px 0 0;padding-left:18px">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div><button class="btn btn-ghost btn-sm" data-alert-close>✕</button></div>@endif

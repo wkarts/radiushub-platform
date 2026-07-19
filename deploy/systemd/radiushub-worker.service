@@ -1,0 +1,17 @@
+[Unit]
+Description=RadiusHub Laravel Queue Worker
+After=network.target
+
+[Service]
+Type=simple
+User=__SITE_USER__
+Group=__SITE_GROUP__
+WorkingDirectory=__PROJECT_ROOT__
+ExecStart=__PHP_BIN__ artisan queue:work --queue=webhooks,default --sleep=2 --tries=5 --timeout=120 --max-time=3600
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=3600
+
+[Install]
+WantedBy=multi-user.target

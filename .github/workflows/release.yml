@@ -1,0 +1,29 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Preparar pacote
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          mkdir -p dist/radiushub-platform-${version}
+          rsync -a ./ dist/radiushub-platform-${version}/ \
+            --exclude .git --exclude dist --exclude .env --exclude vendor \
+            --exclude 'storage/logs/*' --exclude 'storage/framework/*'
+          tar -C dist -czf "dist/radiushub-platform-${version}.tar.gz" "radiushub-platform-${version}"
+          (cd dist && sha256sum "radiushub-platform-${version}.tar.gz" > "radiushub-platform-${version}.tar.gz.sha256")
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/*.tar.gz
+            dist/*.sha256

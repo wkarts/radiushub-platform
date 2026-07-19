@@ -1,0 +1,16 @@
+sql {
+    dialect = "postgresql"
+    driver = "rlm_sql_${dialect}"
+    server = "@@DB_HOST@@"
+    port = @@DB_PORT@@
+    login = "@@DB_USERNAME@@"
+    password = "@@DB_PASSWORD@@"
+    radius_db = "@@DB_DATABASE@@"
+    acct_table1 = radius_accounting
+    acct_table2 = radius_accounting
+    postauth_table = radius_auth_attempts
+    read_clients = yes
+    client_table = mikrotik_devices
+    pool { start = 5 min = 3 max = 20 spare = 5 uses = 0 retry_delay = 30 lifetime = 0 idle_timeout = 60 }
+    $INCLUDE ${modconfdir}/sql/main/${dialect}/queries.conf
+}
