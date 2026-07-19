@@ -1,54 +1,63 @@
-# Pull Request — RadiusHub Platform 1.3.2
+# Pull Request — RadiusHub Platform 1.3.3
 
 ## Branch
 
-`fix/v1.3.2-definitive-ci-validation`
+`fix/v1.3.3-duplicate-migration-guard`
 
 ## Título
 
-`fix(ci): estabilizar autorização, migrations MySQL e validações do RadiusHub`
+`fix(ci): remover migration duplicada e proteger o inventário do RadiusHub`
 
 ## Commit
 
-`fix(platform): corrigir controller base e migrations retomáveis no MySQL`
+`fix(database): remover migration duplicada do webhook e validar sequências`
 
 ## Mensagem de merge
 
-`fix: publicar RadiusHub Platform v1.3.2 com validações estáveis`
+`fix: publicar RadiusHub Platform v1.3.3 com migrations consistentes`
 
 ## Descrição
 
 ### Objetivo
 
-Resolver as falhas remanescentes do workflow GitHub Actions `80361125869`, preservando integralmente a arquitetura Laravel/Blade, MikroTik SSH Key, vouchers, FreeRADIUS, multiempresa e integração Asaas.
+Corrigir as falhas do workflow GitHub Actions `80393755885`, preservando a arquitetura Laravel/Blade e todas as integrações existentes.
 
-### Causas-raiz corrigidas
+### Causa-raiz
 
-- `CompanyController::authorize()` inexistente porque o controller base não herdava o controller de roteamento do Laravel nem utilizava `AuthorizesRequests`;
-- migration do webhook removia no MySQL um índice ainda utilizado pela foreign key de `tenant_id`;
-- migrations DDL não podiam ser retomadas com segurança após falha parcial no MySQL;
-- warnings de teste eram truncados e o ambiente de teste não possuía `.env.testing` explícito;
-- workflows ainda utilizavam ações baseadas no runtime Node anterior.
+A branch 1.3.2 continha duas migrations diferentes com a mesma sequência `2026_07_19_000800`. A migration canônica criava as colunas do webhook por gateway e a migration obsoleta executada logo depois tentava criá-las novamente.
+
+O mesmo defeito derrubava:
+
+- testes em SQLite com PHP 8.3 e 8.4;
+- migrations no MySQL 8.4;
+- migrations no PostgreSQL 17.
 
 ### Alterações
 
-- restaura `BaseController`, `AuthorizesRequests` e `ValidatesRequests`;
-- cria o índice substituto do webhook em DDL separado antes de remover o índice legado;
-- torna as migrations 000700 e 000800 idempotentes nos pontos de falha conhecidos;
-- valida a integridade estrutural antes de retomar migration parcialmente executada;
-- evita duplicação de tokens de webhook e índices durante reexecução;
-- adiciona `.env.testing` no job de qualidade;
-- habilita `--display-warnings` no PHPUnit;
-- atualiza checkout, cache e ações Docker;
-- adiciona upgrade CloudPanel/Docker 1.3.1 → 1.3.2;
-- mantém todos os recursos e contratos públicos existentes.
+- remove `2026_07_19_000800_secure_asaas_webhooks_by_gateway.php`;
+- mantém `2026_07_19_000800_secure_asaas_webhook_per_gateway.php` como migration canônica;
+- adiciona verificador independente de integridade das migrations;
+- impede sequências de timestamp duplicadas;
+- impede retorno do arquivo obsoleto;
+- adiciona teste unitário de inventário;
+- executa a validação no CI antes dos testes e das migrations;
+- executa a validação em CloudPanel, Docker e entrypoint;
+- adiciona upgrade 1.3.2 → 1.3.3 com backup e remoção segura do arquivo obsoleto;
+- atualiza versão, documentação, changelog e imagens.
+
+### Compatibilidade
+
+- nenhuma funcionalidade removida;
+- nenhum dado ou tabela removido;
+- não exige apagar registros da tabela `migrations`;
+- preserve MikroTik SSH Key, vouchers, FreeRADIUS, multiempresa, financeiro e Asaas;
+- compatível com CloudPanel, Docker, MySQL e PostgreSQL.
 
 ### Validação
 
-- sintaxe integral de PHP;
-- sintaxe de scripts Bash;
-- parsing de JSON e YAML;
-- verificação da ordem de DDL dos índices;
-- verificação de retomada das migrations;
-- matriz CI para PHP 8.3/8.4, MySQL 8.4 e PostgreSQL 17;
-- builds das imagens app, web e FreeRADIUS.
+- PHP 8.3 e PHP 8.4;
+- SQLite em memória;
+- MySQL 8.4;
+- PostgreSQL 17;
+- verificação de sequência única de migrations;
+- builds Docker app, web e FreeRADIUS.

@@ -72,6 +72,9 @@
         "lint": [
             "@php -d detect_unicode=0 scripts/php-lint.php"
         ],
+        "migrations:check": [
+            "@php scripts/check-migration-integrity.php"
+        ],
         "doctor": [
             "@php artisan radiushub:doctor"
         ],

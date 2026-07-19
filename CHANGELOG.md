@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.3.3 — 2026-07-19
+
+### Corrigido
+
+- removida a migration duplicada `2026_07_19_000800_secure_asaas_webhooks_by_gateway.php`;
+- mantida como canônica a migration retomável `2026_07_19_000800_secure_asaas_webhook_per_gateway.php`;
+- instalações novas não tentam mais adicionar duas vezes `webhook_public_token`, `webhook_public_token_hash`, `company_id` e `payment_gateway_config_id`;
+- migrations voltam a executar em SQLite, MySQL 8.4 e PostgreSQL 17;
+- adicionado verificador de inventário que bloqueia sequências de migration duplicadas antes de qualquer alteração de banco;
+- CI, instaladores CloudPanel/Docker, entrypoint e atualizadores executam a verificação preventiva;
+- upgrade 1.3.2 → 1.3.3 remove com backup o arquivo obsoleto que possa permanecer após atualização por sobreposição.
+
+### Compatibilidade
+
+- nenhuma tabela ou funcionalidade foi removida;
+- registros já existentes na tabela `migrations` não precisam ser apagados;
+- Laravel/Blade, MySQL, PostgreSQL, Docker, CloudPanel, FreeRADIUS, MikroTik SSH Key, vouchers e Asaas foram preservados.
+
 ## 1.3.2 — 2026-07-19
 
 ### Corrigido

@@ -51,6 +51,7 @@ wait_for_database
 rm -f bootstrap/cache/config.php bootstrap/cache/events.php bootstrap/cache/routes-*.php
 
 if [ "${AUTO_MIGRATE:-false}" = "true" ]; then
+  as_www_data php scripts/check-migration-integrity.php
   as_www_data php artisan migrate --force
 fi
 

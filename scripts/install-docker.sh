@@ -78,6 +78,7 @@ log "Iniciando banco e Redis..."
 "${compose[@]}" up -d "$DB_ENGINE" redis
 
 log "Executando migrations e seed inicial..."
+"${compose[@]}" run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php scripts/check-migration-integrity.php
 "${compose[@]}" run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php artisan migrate --force
 "${compose[@]}" run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php artisan db:seed --force
 "${compose[@]}" run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php artisan radiushub:doctor || true

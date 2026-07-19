@@ -52,6 +52,8 @@ if ($PullImages) {
     docker compose @profileArgs build --pull app web freeradius
 }
 docker compose @profileArgs up -d $Database redis
+docker compose @profileArgs run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php scripts/check-migration-integrity.php
+if ($LASTEXITCODE -ne 0) { throw "Falha na integridade das migrations." }
 docker compose @profileArgs run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php artisan migrate --force
 docker compose @profileArgs run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php artisan db:seed --force
 docker compose @profileArgs up -d --remove-orphans

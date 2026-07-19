@@ -1,47 +1,51 @@
-# Validação da entrega 1.3.2
+# Validação da entrega 1.3.3
 
 ## Log analisado
 
-Workflow GitHub Actions `80361125869`.
+Workflow GitHub Actions `80393755885`.
 
-Falhas confirmadas nos logs:
+## Causa-raiz confirmada
 
-- PHP 8.3 e 8.4: `CompanyController::authorize()` inexistente devido ao controller base incompleto;
-- efeito secundário: empresa não criada e `ModelNotFoundException` no teste de provisionamento;
-- MySQL 8.4: erro 1553 ao remover índice do webhook ainda utilizado pela foreign key `tenant_id`;
-- warnings do PHPUnit apresentados de forma truncada;
-- avisos de runtime antigo nas ações GitHub.
+O pacote 1.3.2 continha simultaneamente duas migrations com a mesma sequência `2026_07_19_000800`:
 
-Os jobs PostgreSQL 17 e as imagens Docker app, web e FreeRADIUS concluíram sem a falha funcional acima.
+- `2026_07_19_000800_secure_asaas_webhook_per_gateway.php`;
+- `2026_07_19_000800_secure_asaas_webhooks_by_gateway.php`.
 
-## Correções verificadas estaticamente
+A primeira migration concluía corretamente as alterações do webhook. Em seguida, a segunda tentava adicionar novamente as mesmas colunas. Isso produziu:
 
-- controller base herda `Illuminate\Routing\Controller`;
-- traits `AuthorizesRequests` e `ValidatesRequests` restaurados;
-- migration do webhook cria índice substituto em DDL anterior ao `dropUnique`;
-- migrations 000700 e 000800 possuem retomada idempotente para DDL parcial conhecido;
-- retomada da migration 000700 valida a estrutura antes de concluir somente os índices;
-- tokens e índices do webhook não são recriados quando já existem;
-- `.env.testing` é preparado no CI;
-- PHPUnit executa com `--display-warnings`;
-- ações checkout/cache/Docker atualizadas;
-- testes de regressão adicionados para o controller base e ordem de DDL.
+- SQLite/PHP 8.3 e 8.4: `duplicate column name: webhook_public_token`;
+- MySQL 8.4: `Duplicate column name 'webhook_public_token'`;
+- PostgreSQL 17: `column "webhook_public_token" already exists`.
 
-## Validações executadas no ambiente de geração
+Os 13 testes de feature falharam pelo mesmo erro de bootstrap do banco; não eram 13 defeitos independentes. As três imagens Docker foram construídas com sucesso.
 
+## Correção aplicada
+
+- removida a migration duplicada plural;
+- preservada a migration singular, idempotente e retomável;
+- adicionado `scripts/check-migration-integrity.php`;
+- o verificador rejeita nomes fora do padrão, sequências duplicadas e a migration obsoleta;
+- adicionado teste unitário de inventário de migrations;
+- CI executa `composer migrations:check` em PHP, MySQL e PostgreSQL;
+- instaladores, atualizadores e entrypoint Docker validam as migrations antes de executar `artisan migrate`;
+- upgrade 1.3.2 → 1.3.3 remove o arquivo obsoleto com backup antes da migração.
+
+## Validações executadas neste ambiente
+
+- integridade do inventário de migrations;
 - sintaxe de todos os arquivos PHP com `php -l`;
-- sintaxe de todos os scripts Bash com `bash -n`;
-- parsing de JSON e YAML;
-- verificação de referências de versão;
-- busca por credenciais expostas e blocos de chave privada;
-- geração do manifesto SHA-256 e árvore do projeto;
+- sintaxe dos scripts Bash com `bash -n`;
+- parsing dos arquivos JSON e YAML;
+- conferência das referências de versão;
+- busca por credenciais expostas e chaves privadas;
+- geração de árvore e manifesto SHA-256;
 - teste de integridade do ZIP.
 
-## Validações delegadas ao CI/homologação
+## Validações executadas pelo workflow após o push
 
-O ambiente de geração não possui Composer, Docker Engine, MySQL ou PostgreSQL. Por isso, as seguintes verificações ficam configuradas no workflow:
-
-- Composer e PHPUnit em PHP 8.3/8.4;
-- migrations, seeders e doctor no MySQL 8.4 e PostgreSQL 17;
-- renderização das configurações FreeRADIUS;
+- Composer e PHPUnit em PHP 8.3 e 8.4;
+- migrations, seeders, doctor e renderização FreeRADIUS no MySQL 8.4;
+- migrations, seeders, doctor e renderização FreeRADIUS no PostgreSQL 17;
 - build das imagens app, web e FreeRADIUS.
+
+O ambiente local não possui Composer, Docker Engine, MySQL ou PostgreSQL. Portanto, a matriz completa não foi executada localmente; a causa-raiz, contudo, foi reproduzida diretamente pelos logs e removida do inventário de migrations.
