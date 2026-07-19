@@ -47,7 +47,7 @@ Não exponha PostgreSQL/MySQL/Redis. Restrinja 1812/1813 no firewall aos IPs dos
 
 ```env
 RADIUSHUB_REGISTRY=ghcr.io/wkarts
-RADIUSHUB_TAG=1.3.4
+RADIUSHUB_TAG=1.3.5
 ```
 
 ```bash

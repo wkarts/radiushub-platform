@@ -24,6 +24,9 @@ permissions:
   contents: write
   packages: write
 
+env:
+  GH_REPO: ${{ github.repository }}
+
 concurrency:
   group: release-${{ github.repository }}
   cancel-in-progress: false
@@ -106,7 +109,7 @@ jobs:
           fi
 
           release_exists=false
-          if gh release view "${tag}" >/dev/null 2>&1; then
+          if gh release view "${tag}" --repo "${GH_REPO}" >/dev/null 2>&1; then
             release_exists=true
           fi
 
@@ -275,15 +278,47 @@ jobs:
     if: needs.prepare.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout do commit da release
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.commit_sha }}
+          fetch-depth: 0
+
       - uses: actions/download-artifact@v8
         with:
           name: release-assets-${{ needs.prepare.outputs.version }}
           path: dist
 
-      - name: Validar artefatos
+      - name: Validar contexto, tag e artefatos
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          set -Eeuo pipefail
+          tag="${{ needs.prepare.outputs.tag }}"
+          expected_sha="${{ needs.prepare.outputs.commit_sha }}"
+
+          test "$(git rev-parse --is-inside-work-tree)" = "true"
+          test "$(git rev-parse HEAD)" = "${expected_sha}"
+
+          git fetch --force --tags origin
+          git rev-parse -q --verify "refs/tags/${tag}^{commit}" >/dev/null
+          actual_tag_sha="$(git rev-list -n 1 "${tag}")"
+
+          if [[ "${actual_tag_sha}" != "${expected_sha}" ]]; then
+            echo "::error::A tag ${tag} aponta para ${actual_tag_sha}, mas a release espera ${expected_sha}."
+            exit 1
+          fi
+
+          gh auth status
+          gh repo view "${GH_REPO}" --json nameWithOwner --jq '.nameWithOwner'
+
           cd dist
           sha256sum -c SHA256SUMS
+          test -s "radiushub-platform-${{ needs.prepare.outputs.version }}.zip"
+          test -s "radiushub-platform-${{ needs.prepare.outputs.version }}.tar.gz"
+          test -s SHA256SUMS
+          test -s RELEASE-METADATA.json
 
       - name: Criar ou atualizar release
         shell: bash
@@ -293,17 +328,109 @@ jobs:
           set -Eeuo pipefail
           tag="${{ needs.prepare.outputs.tag }}"
           version="${{ needs.prepare.outputs.version }}"
+          assets=(
+            "dist/radiushub-platform-${version}.zip"
+            "dist/radiushub-platform-${version}.tar.gz"
+            "dist/SHA256SUMS"
+            "dist/RELEASE-METADATA.json"
+          )
 
-          if gh release view "${tag}" >/dev/null 2>&1; then
-            gh release upload "${tag}" dist/* --clobber
+          retry() {
+            local attempt=1
+            local max_attempts=3
+            local delay=5
+
+            until "$@"; do
+              if (( attempt >= max_attempts )); then
+                echo "::error::Comando falhou após ${max_attempts} tentativas: $*"
+                return 1
+              fi
+
+              echo "Tentativa ${attempt} falhou; repetindo em ${delay}s: $*"
+              sleep "${delay}"
+              attempt=$((attempt + 1))
+              delay=$((delay * 2))
+            done
+          }
+
+          upload_assets() {
+            retry gh release upload "${tag}" "${assets[@]}" \
+              --clobber \
+              --repo "${GH_REPO}"
+          }
+
+          create_or_recover_release() {
+            local attempt=1
+            local max_attempts=3
+            local delay=5
+
+            while (( attempt <= max_attempts )); do
+              if gh release view "${tag}" --repo "${GH_REPO}" >/dev/null 2>&1; then
+                upload_assets
+                return 0
+              fi
+
+              if gh release create "${tag}" "${assets[@]}" \
+                --repo "${GH_REPO}" \
+                --verify-tag \
+                --target "${{ needs.prepare.outputs.commit_sha }}" \
+                --title "RadiusHub Platform ${version}" \
+                --generate-notes \
+                --latest; then
+                return 0
+              fi
+
+              if (( attempt >= max_attempts )); then
+                echo "::error::Não foi possível criar ou recuperar a release ${tag}."
+                return 1
+              fi
+
+              echo "Criação da release falhou; verificando estado remoto novamente em ${delay}s."
+              sleep "${delay}"
+              attempt=$((attempt + 1))
+              delay=$((delay * 2))
+            done
+          }
+
+          if gh release view "${tag}" --repo "${GH_REPO}" >/dev/null 2>&1; then
+            upload_assets
           else
-            gh release create "${tag}" dist/* \
-              --verify-tag \
-              --target "${{ needs.prepare.outputs.commit_sha }}" \
-              --title "RadiusHub Platform ${version}" \
-              --generate-notes \
-              --latest
+            create_or_recover_release
           fi
+
+      - name: Verificar release publicada
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          tag="${{ needs.prepare.outputs.tag }}"
+          version="${{ needs.prepare.outputs.version }}"
+
+          release_url="$(gh release view "${tag}" \
+            --repo "${GH_REPO}" \
+            --json url \
+            --jq '.url')"
+
+          gh release view "${tag}" \
+            --repo "${GH_REPO}" \
+            --json assets,url > /tmp/radiushub-release.json
+
+          expected_assets=(
+            "RELEASE-METADATA.json"
+            "SHA256SUMS"
+            "radiushub-platform-${version}.tar.gz"
+            "radiushub-platform-${version}.zip"
+          )
+
+          for asset in "${expected_assets[@]}"; do
+            if ! jq -e --arg name "${asset}" \
+              '.assets[] | select(.name == $name and .size > 0)' \
+              /tmp/radiushub-release.json >/dev/null; then
+              echo "::error::Artefato ausente ou vazio na release ${tag}: ${asset}"
+              exit 1
+            fi
+          done
 
           {
             echo "### Release publicada"
@@ -311,7 +438,8 @@ jobs:
             echo "- Tag: \`${tag}\`"
             echo "- Versão: \`${version}\`"
             echo "- Commit: \`${{ needs.prepare.outputs.commit_sha }}\`"
-            echo "- URL: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${tag}"
+            echo "- URL: ${release_url}"
+            echo "- Artefatos: 4 verificados"
           } >> "${GITHUB_STEP_SUMMARY}"
 
   no-release:

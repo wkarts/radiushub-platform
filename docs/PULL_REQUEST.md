@@ -1,21 +1,17 @@
-# Pull Request — RadiusHub Platform 1.3.4
+# Pull Request — RadiusHub Platform 1.3.5
 
 ## Branch
 
-`fix/v1.3.4-automatic-release-after-ci`
+`fix/v1.3.5-release-publish-repository-context`
 
 ## Título
 
-`fix(release): criar tag e GitHub Release automaticamente após o CI`
+`fix(release): corrigir contexto do GitHub CLI na publicação final`
 
 ## Commit
 
-`fix(release): automatizar tag, artefatos e imagens versionadas`
+`fix(release): adicionar checkout e repositório explícito no job publish`
 
 ## Merge
 
-`fix: publicar RadiusHub Platform v1.3.4 com release automática`
-
-## Objetivo
-
-Corrigir o fluxo em que o merge e todos os testes terminavam com sucesso, mas nenhuma GitHub Release era criada, porque o workflow anterior dependia exclusivamente de uma tag manual.
+`fix: publicar RadiusHub Platform v1.3.5 com GitHub Release validada`
