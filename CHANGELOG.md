@@ -1,36 +1,63 @@
 # Changelog
 
-## 1.2.0 - 2026-07-19
-
-### Corrigido
-
-- login não depende mais de hostname Docker `redis` em instalações nativas;
-- cache/limiter/fila possuem configuração específica para CloudPanel e Docker;
-- suporte real a MySQL e PostgreSQL no Laravel e no FreeRADIUS;
-- remoção de `ILIKE`, `jsonb` e posicionamento de colunas incompatíveis com MySQL;
-- credenciais RADIUS com criptografia nativa para MySQL/PostgreSQL;
-- configuração FreeRADIUS renderizada e validável por comando Artisan;
-- entrypoints Docker com espera de banco, migrations controladas e permissões;
-- proxy confiável, cookies HTTPS e exceção CSRF restrita aos webhooks;
-- configuração antiga e ambígua do FreeRADIUS removida.
+## 1.3.0 — 2026-07-19
 
 ### Adicionado
 
-- instaladores completos para Docker e CloudPanel nativo;
-- atualização, backup e diagnóstico para ambos os modos;
-- imagens separadas `app`, `web` e `freeradius`;
-- Docker Compose com profiles MySQL/PostgreSQL;
-- workflows CI, GHCR, release e Dependabot;
-- documentação de GitHub, Docker, CloudPanel e bancos;
-- comando `radiushub:doctor`;
-- comando `radiushub:credentials:reencrypt`;
-- comando `radiushub:radius:render`.
+- estrutura completa tenant → empresas;
+- RBAC por empresa e papéis de sistema;
+- criação opcional do administrador da empresa;
+- login por e-mail/login, troca obrigatória e TOTP/2FA;
+- integração MikroTik por SSH Key com validação, fingerprint, inventário, allowlist e logs;
+- fallback por senha desativado por padrão em nível global e por equipamento;
+- sincronização manual e automática de perfis, acessos e vouchers;
+- vouchers em lote, validade fixa/primeiro acesso, impressão, CSV e PDF;
+- dashboard global e dashboard por empresa;
+- auditoria ampliada e sanitização de dados sensíveis;
+- menu lateral colapsável, submenus flyout e interface mobile;
+- queries FreeRADIUS multiempresa para MySQL/PostgreSQL;
+- fila `network`, jobs com retry/backoff e reconciliação de vouchers;
+- documentação de SSH, vouchers, RBAC, CRUD, segurança e upgrade;
+- controle administrativo de sessões por SSH (disconnect e rate-limit), mantendo CoA apenas como fallback opcional;
+- limites de uso por tenant/empresa para empresas, usuários, MikroTiks, clientes, planos, acessos e vouchers;
+- permissão específica para exportação de vouchers e modelos de impressão personalizáveis;
+- teste de regressão do schema multiempresa, SSH, vouchers e RBAC;
+- middleware de validação de models vinculados à rota para bloquear acesso cruzado entre tenants/empresas.
+- endpoint Asaas secreto e exclusivo por empresa/gateway, sem expor tenant, slug ou UUID interno;
+- rotação de URL e comando `asaas:webhooks:sync` para atualizar os webhooks remotos.
 
-## 1.1.0 - 2026-07-18
+### Corrigido
 
-- integração do SDK Asaas ARGWS 0.2.62;
-- clientes, cobranças, Pix, boleto, cartão, webhooks, reconciliação e estornos.
+- login quebrado por hostname Redis de Docker em instalação CloudPanel;
+- validações `exists`/`unique` agora respeitam empresa;
+- pesquisas incompatíveis com MySQL;
+- workers incluem fila de sincronização de rede;
+- health check usa SSH em vez da API RouterOS legada;
+- upgrade 1.2 → 1.3 preserva `APP_KEY` e credenciais;
+- migration preserva os novos campos de assinatura/status/limites do tenant durante o `up()`;
+- status da empresa padrão é compatível com o domínio (`active`/`suspended`);
+- fingerprint SSH é validada antes do envio das credenciais e pode ser fixada por TOFU controlado;
+- Superadministrador é direcionado ao dashboard global após login/2FA;
+- Scheduler de vouchers limpa os contextos tenant/empresa entre iterações.
+- idempotência dos webhooks Asaas passou a considerar o gateway e a empresa de origem.
+- processamento de pagamentos restringe a fatura ao mesmo tenant, empresa e gateway.
 
-## 1.0.0 - 2026-07-18
+### Compatibilidade
+
+- Laravel/PHP full-stack preservado;
+- Asaas SDK ARGWS 0.2.62 preservado;
+- MySQL e PostgreSQL;
+- Docker e CloudPanel nativo;
+- campos legados da API RouterOS preservados no banco, sem uso ativo.
+
+## 1.2.0
+
+- Docker/CloudPanel, MySQL/PostgreSQL, FreeRADIUS e correções de Redis.
+
+## 1.1.0
+
+- integração Asaas SDK ARGWS.
+
+## 1.0.0
 
 - versão inicial da plataforma.

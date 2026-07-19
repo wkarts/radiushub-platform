@@ -3,113 +3,110 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\TenantUserRequest;
+use App\Models\Role;
 use App\Models\User;
 use App\Services\Audit\AuditLogger;
+use App\Services\Limits\UsageLimitService;
+use App\Services\Tenancy\CompanyContext;
 use App\Services\Tenancy\TenantContext;
+use App\Support\Search;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class TenantUserController extends Controller
 {
-    public function index(TenantContext $context): View
+    public function index(Request $request, CompanyContext $company, TenantContext $tenant): View
     {
-        $users = $context->tenant()
-            ->users()
-            ->orderBy('name')
-            ->paginate(25);
+        $users = $company->company()->users()
+            ->when($request->filled('q'), fn ($q) => Search::contains($q, 'users.name', (string) $request->string('q')))
+            ->orderBy('users.name')->paginate(25)->withQueryString();
 
-        return view('users.index', compact('users'));
+        $roles = Role::query()
+            ->where(fn ($q) => $q->whereNull('tenant_id')->orWhere('tenant_id', $tenant->id()))
+            ->where('scope', 'company')->where('active', true)->orderBy('name')->get();
+
+        return view('users.index', compact('users', 'roles'));
     }
 
-    public function store(TenantUserRequest $request, TenantContext $context, AuditLogger $audit): RedirectResponse
+    public function store(TenantUserRequest $request, CompanyContext $company, TenantContext $tenant, AuditLogger $audit, UsageLimitService $limits): RedirectResponse
     {
-        $user = DB::transaction(function () use ($request, $context): User {
+        $limits->assertCompany($company->company(), 'users');
+        $user = DB::transaction(function () use ($request, $company, $tenant): User {
             $user = User::query()->create([
                 'name' => $request->string('name')->toString(),
+                'login' => $request->filled('login') ? $request->string('login')->lower()->toString() : null,
                 'email' => $request->string('email')->lower()->toString(),
                 'password' => $request->string('password')->toString(),
                 'active' => $request->boolean('active'),
+                'must_change_password' => $request->boolean('must_change_password', true),
                 'is_super_admin' => false,
                 'email_verified_at' => now(),
             ]);
 
-            $context->tenant()->users()->attach($user->id, ['role' => $request->string('role')->toString()]);
+            $tenant->tenant()->users()->attach($user->id, ['role' => $request->boolean('tenant_admin') ? 'tenant_admin' : 'operator']);
+            $company->company()->users()->attach($user->id, [
+                'role_id' => $request->string('role_id')->toString(),
+                'is_primary' => true,
+                'active' => true,
+            ]);
 
             return $user;
         });
 
-        $audit->record('tenant-user.created', $user, [], [
-            'name' => $user->name,
-            'email' => $user->email,
-            'role' => $request->string('role')->toString(),
+        $audit->record('company-user.created', $user, [], [
+            'name' => $user->name, 'email' => $user->email, 'company_id' => $company->id(),
+            'role_id' => $request->string('role_id')->toString(),
         ]);
 
         return back()->with('success', 'Usuário da empresa cadastrado.');
     }
 
-    public function update(TenantUserRequest $request, User $user, TenantContext $context, AuditLogger $audit): RedirectResponse
+    public function update(TenantUserRequest $request, User $user, CompanyContext $company, TenantContext $tenant, AuditLogger $audit): RedirectResponse
     {
-        $this->ensureTenantUser($user, $context);
-        abort_if($user->is_super_admin && ! $request->user()->is_super_admin, 403, 'Somente outro superadministrador pode alterar esta conta.');
+        $this->ensureCompanyUser($user, $company);
+        $old = ['name' => $user->name, 'email' => $user->email, 'active' => $user->active];
 
-        $old = [
-            'name' => $user->name,
-            'email' => $user->email,
-            'active' => $user->active,
-            'role' => $user->roleForTenant($context->id()),
-        ];
-
-        DB::transaction(function () use ($request, $user, $context): void {
+        DB::transaction(function () use ($request, $user, $company, $tenant): void {
             $data = [
                 'name' => $request->string('name')->toString(),
+                'login' => $request->filled('login') ? $request->string('login')->lower()->toString() : null,
                 'email' => $request->string('email')->lower()->toString(),
                 'active' => $request->boolean('active'),
+                'must_change_password' => $request->boolean('must_change_password'),
             ];
-
-            if ($request->filled('password')) {
-                $data['password'] = $request->string('password')->toString();
-            }
-
+            if ($request->filled('password')) $data['password'] = $request->string('password')->toString();
             $user->update($data);
-            $context->tenant()->users()->updateExistingPivot($user->id, [
-                'role' => $request->string('role')->toString(),
+
+            $company->company()->users()->updateExistingPivot($user->id, [
+                'role_id' => $request->string('role_id')->toString(), 'active' => true,
             ]);
+            $tenant->tenant()->users()->syncWithoutDetaching([$user->id => ['role' => $request->boolean('tenant_admin') ? 'tenant_admin' : 'operator']]);
         });
 
-        $audit->record('tenant-user.updated', $user, $old, [
-            'name' => $user->fresh()->name,
-            'email' => $user->fresh()->email,
-            'active' => $user->fresh()->active,
-            'role' => $request->string('role')->toString(),
+        $audit->record('company-user.updated', $user, $old, [
+            'name' => $user->fresh()->name, 'email' => $user->fresh()->email,
+            'active' => $user->fresh()->active, 'role_id' => $request->string('role_id')->toString(),
         ]);
 
         return back()->with('success', 'Usuário atualizado.');
     }
 
-    public function destroy(User $user, TenantContext $context, AuditLogger $audit): RedirectResponse
+    public function destroy(User $user, CompanyContext $company, AuditLogger $audit): RedirectResponse
     {
-        $this->ensureTenantUser($user, $context);
+        $this->ensureCompanyUser($user, $company);
         abort_if($user->is(auth()->user()), 422, 'Você não pode remover o próprio vínculo.');
-        abort_if($user->is_super_admin, 422, 'A conta de superadministrador não pode ser removida por esta tela.');
+        abort_if($user->is_super_admin, 422, 'Superadministradores não podem ser removidos por esta tela.');
 
-        $old = [
-            'name' => $user->name,
-            'email' => $user->email,
-            'role' => $user->roleForTenant($context->id()),
-        ];
+        $company->company()->users()->detach($user->id);
+        $audit->record('company-user.detached', $user, ['company_id' => $company->id()], []);
 
-        $context->tenant()->users()->detach($user->id);
-        $audit->record('tenant-user.detached', $user, $old, []);
-
-        return back()->with('success', 'Usuário removido da empresa.');
+        return back()->with('success', 'Usuário removido da empresa atual.');
     }
 
-    private function ensureTenantUser(User $user, TenantContext $context): void
+    private function ensureCompanyUser(User $user, CompanyContext $company): void
     {
-        abort_unless(
-            $context->tenant()->users()->whereKey($user->id)->exists(),
-            404
-        );
+        abort_unless($company->company()->users()->whereKey($user->id)->exists(), 404);
     }
 }

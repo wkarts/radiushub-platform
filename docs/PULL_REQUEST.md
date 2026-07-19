@@ -1,8 +1,8 @@
 # Sugestão de Pull Request
 
-**Branch:** `feat/docker-cloudpanel-mysql-postgres-v1.2.0`
+**Branch:** `feat/docker-cloudpanel-mysql-postgres-v1.3.0`
 
-**Título:** `feat: preparar RadiusHub 1.2.0 para Docker, CloudPanel e GHCR`
+**Título:** `feat: preparar RadiusHub 1.3.0 para Docker, CloudPanel e GHCR`
 
 **Commit principal:**
 

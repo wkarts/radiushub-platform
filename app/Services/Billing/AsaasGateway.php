@@ -241,13 +241,13 @@ final class AsaasGateway implements BillingGateway
     public function synchronizeWebhook(PaymentGatewayConfig $gateway, string $url): array
     {
         try {
-            $gateway->loadMissing('tenant');
+            $gateway->loadMissing(['tenant', 'company']);
             $settings = $gateway->settings ?? [];
             $webhookId = trim((string) ($settings['webhook_external_id'] ?? ''));
             $payload = [
                 'name' => (string) config('asaas.webhook.name', 'RadiusHub - Pagamentos'),
                 'url' => $url,
-                'email' => (string) ($settings['webhook_email'] ?? $gateway->tenant?->email ?? ''),
+                'email' => (string) ($settings['webhook_email'] ?? $gateway->company?->email ?? $gateway->tenant?->email ?? ''),
                 'enabled' => $gateway->active,
                 'interrupted' => false,
                 'apiVersion' => 3,
@@ -262,8 +262,12 @@ final class AsaasGateway implements BillingGateway
 
             if ($webhookId === '') {
                 $list = (array) $this->sdk()->webhook->listWebhooks();
+                $knownUrls = array_values(array_filter([
+                    $url,
+                    trim((string) ($settings['webhook_url'] ?? '')),
+                ]));
                 $existing = collect((array) ($list['data'] ?? []))
-                    ->first(fn (array $item): bool => ($item['url'] ?? null) === $url);
+                    ->first(fn (array $item): bool => in_array((string) ($item['url'] ?? ''), $knownUrls, true));
                 $webhookId = (string) ($existing['id'] ?? '');
             }
 

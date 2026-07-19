@@ -35,8 +35,12 @@
                         @endif
                     </td>
                     <td>
-                        <span class="kbd">{{ rtrim(config('app.url'), '/') . route('webhooks.asaas', ['tenant' => $currentTenant->slug], false) }}</span>
-                        <div class="form-help">{{ data_get($gateway->settings, 'webhook_sync_status') === 'success' ? 'Sincronizado' : 'Pendente de sincronização' }}</div>
+                        @if($gateway->driver === 'asaas')
+                            <input type="text" class="input-readonly webhook-url" value="{{ $gateway->webhookUrl() }}" readonly aria-label="URL do webhook">
+                            <div class="form-help">Endpoint secreto e exclusivo desta empresa/gateway. {{ data_get($gateway->settings, 'webhook_sync_status') === 'success' ? 'Sincronizado' : 'Pendente de sincronização' }}</div>
+                        @else
+                            <span class="muted">Não aplicável</span>
+                        @endif
                     </td>
                     <td><x-status-badge :value="$gateway->active ? 'active' : 'inactive'" /></td>
                     <td>
@@ -50,6 +54,10 @@
                                     @csrf
                                     <button class="btn btn-secondary btn-sm">Sincronizar webhook</button>
                                 </form>
+                                <form method="post" action="{{ route('gateways.rotate-webhook-endpoint', $gateway) }}">
+                                    @csrf
+                                    <button class="btn btn-ghost btn-sm" data-confirm="Regenerar a URL secreta? A URL anterior deixará de receber eventos após a sincronização.">Regenerar URL</button>
+                                </form>
                             @endif
                             <button class="btn btn-secondary btn-sm" data-modal-open="gateway-edit-{{ $gateway->id }}">Editar</button>
                             <form method="post" action="{{ route('gateways.destroy', $gateway) }}">
@@ -61,7 +69,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="7"><x-empty-state title="Nenhum gateway configurado" text="Cadastre uma conta Asaas por tenant ou use o modo manual." /></td></tr>
+                <tr><td colspan="7"><x-empty-state title="Nenhum gateway configurado" text="Cadastre uma conta Asaas por empresa ou use o modo manual." /></td></tr>
             @endforelse
             </tbody>
         </table>

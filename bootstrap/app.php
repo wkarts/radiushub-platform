@@ -1,7 +1,11 @@
 <?php
 
+use App\Http\Middleware\EnsureBoundModelsBelongToContext;
+use App\Http\Middleware\EnsurePasswordChanged;
+use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\EnsureTenantPermission;
+use App\Http\Middleware\SetCurrentCompany;
 use App\Http\Middleware\SetCurrentTenant;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -34,8 +38,12 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'tenant' => SetCurrentTenant::class,
+            'company' => SetCurrentCompany::class,
+            'permission' => EnsurePermission::class,
+            'password.changed' => EnsurePasswordChanged::class,
             'role' => EnsureRole::class,
             'tenant.permission' => EnsureTenantPermission::class,
+            'scope.bindings' => EnsureBoundModelsBelongToContext::class,
         ]);
 
         $middleware->validateCsrfTokens(except: ['webhooks/*']);

@@ -1,6 +1,6 @@
-# Upgrade 1.1.0 para 1.2.0
+# Upgrade 1.1.0 para 1.3.0
 
-A versão 1.2.0 corrige o login quebrado por `REDIS_HOST=redis` em instalação nativa, adiciona MySQL completo e torna a infraestrutura FreeRADIUS portável.
+A versão 1.3.0 corrige o login quebrado por `REDIS_HOST=redis` em instalação nativa, adiciona MySQL completo e torna a infraestrutura FreeRADIUS portável.
 
 ## Antes de atualizar
 
@@ -11,7 +11,7 @@ A versão 1.2.0 corrige o login quebrado por `REDIS_HOST=redis` em instalação 
 
 ## Execução
 
-Substitua os arquivos do projeto pela versão 1.2.0, preservando `.env` e `storage`, e execute:
+Substitua os arquivos do projeto pela versão 1.3.0, preservando `.env` e `storage`, e execute:
 
 ```bash
 ./scripts/upgrade-1.1-to-1.2.sh

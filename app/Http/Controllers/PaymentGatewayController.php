@@ -9,6 +9,7 @@ use App\Http\Requests\GatewayRequest;
 use App\Models\Invoice;
 use App\Models\PaymentGatewayConfig;
 use App\Models\Subscriber;
+use App\Services\Audit\AuditLogger;
 use App\Services\Billing\BillingManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -24,11 +25,11 @@ final class PaymentGatewayController extends Controller
         ]);
     }
 
-    public function store(GatewayRequest $request): RedirectResponse
+    public function store(GatewayRequest $request, AuditLogger $audit): RedirectResponse
     {
         $data = $request->validated();
 
-        PaymentGatewayConfig::query()->create([
+        $gateway = PaymentGatewayConfig::query()->create([
             'driver' => $data['driver'],
             'name' => $data['name'],
             'environment' => $data['environment'],
@@ -40,15 +41,25 @@ final class PaymentGatewayController extends Controller
                 'notification_disabled' => $request->boolean('notification_disabled'),
                 'webhook_email' => $data['webhook_email'] ?? null,
             ],
-            'webhook_token' => $data['webhook_token'] ?? bin2hex(random_bytes(32)),
+            'webhook_token' => $data['webhook_token'] ?? null,
+        ]);
+
+        $audit->record('payment_gateway.created', $gateway, [], [
+            'driver' => $gateway->driver,
+            'environment' => $gateway->environment,
+            'active' => $gateway->active,
         ]);
 
         return back()->with('success', 'Gateway cadastrado. Teste a conexão e sincronize o webhook.');
     }
 
-    public function update(GatewayRequest $request, PaymentGatewayConfig $gateway): RedirectResponse
-    {
+    public function update(
+        GatewayRequest $request,
+        PaymentGatewayConfig $gateway,
+        AuditLogger $audit,
+    ): RedirectResponse {
         $data = $request->validated();
+        $old = $gateway->only(['name', 'environment', 'active', 'settings']);
         $credentials = $gateway->credentials ?? [];
         $currentApiKey = (string) ($credentials['api_key'] ?? '');
         $newApiKey = trim((string) ($data['api_key'] ?? ''));
@@ -113,6 +124,13 @@ final class PaymentGatewayController extends Controller
             ]);
         });
 
+        $audit->record('payment_gateway.updated', $gateway, $old, [
+            'name' => $gateway->name,
+            'environment' => $gateway->environment,
+            'active' => $gateway->active,
+            'account_changed' => $accountChanged,
+        ]);
+
         return back()->with('success', $accountChanged
             ? 'Gateway atualizado. Os vínculos pendentes serão recriados com segurança na conta atual.'
             : 'Gateway atualizado.');
@@ -141,21 +159,18 @@ final class PaymentGatewayController extends Controller
         }
     }
 
-    public function synchronizeWebhook(PaymentGatewayConfig $gateway, BillingManager $billing): RedirectResponse
-    {
+    public function synchronizeWebhook(
+        PaymentGatewayConfig $gateway,
+        BillingManager $billing,
+        AuditLogger $audit,
+    ): RedirectResponse {
         try {
-            $url = rtrim((string) config('app.url'), '/').route('webhooks.asaas', ['tenant' => $gateway->tenant->slug], false);
-            $result = $billing->forGateway($gateway)->synchronizeWebhook($gateway, $url);
-            $webhookId = (string) ($result['id'] ?? $gateway->setting('webhook_external_id', ''));
-
-            $gateway->mergeSettings([
-                'webhook_external_id' => $webhookId,
-                'webhook_url' => $url,
-                'webhook_synced_at' => now()->toIso8601String(),
-                'webhook_sync_status' => 'success',
+            $this->synchronizeGatewayWebhook($gateway, $billing, $gateway->webhookUrl());
+            $audit->record('payment_gateway.webhook_synchronized', $gateway, [], [
+                'webhook_url_hash' => hash('sha256', $gateway->webhookUrl()),
             ]);
 
-            return back()->with('success', 'Webhook do Asaas sincronizado.');
+            return back()->with('success', 'Webhook do Asaas sincronizado para a empresa e gateway atuais.');
         } catch (BillingGatewayException $exception) {
             $gateway->mergeSettings([
                 'webhook_sync_status' => 'failed',
@@ -166,10 +181,51 @@ final class PaymentGatewayController extends Controller
         }
     }
 
-    public function destroy(PaymentGatewayConfig $gateway): RedirectResponse
+    public function rotateWebhookEndpoint(
+        PaymentGatewayConfig $gateway,
+        BillingManager $billing,
+        AuditLogger $audit,
+    ): RedirectResponse {
+        abort_unless($gateway->driver === 'asaas', 422, 'Somente gateways Asaas possuem endpoint de webhook.');
+
+        $candidate = PaymentGatewayConfig::generateWebhookPublicToken();
+        $url = rtrim((string) config('app.url'), '/')
+            .route('webhooks.asaas', ['token' => $candidate], false);
+
+        try {
+            $result = $billing->forGateway($gateway)->synchronizeWebhook($gateway, $url);
+            $webhookId = (string) ($result['id'] ?? $gateway->setting('webhook_external_id', ''));
+
+            DB::transaction(function () use ($gateway, $candidate, $url, $webhookId): void {
+                $gateway->setWebhookPublicToken($candidate);
+                $gateway->settings = array_replace($gateway->settings ?? [], [
+                    'webhook_external_id' => $webhookId,
+                    'webhook_url' => $url,
+                    'webhook_synced_at' => now()->toIso8601String(),
+                    'webhook_sync_status' => 'success',
+                    'webhook_sync_message' => null,
+                ]);
+                $gateway->save();
+            });
+
+            $audit->record('payment_gateway.webhook_endpoint_rotated', $gateway, [], [
+                'webhook_url_hash' => hash('sha256', $url),
+            ]);
+
+            return back()->with('success', 'URL secreta do webhook regenerada e sincronizada no Asaas. A URL anterior deixou de funcionar.');
+        } catch (BillingGatewayException $exception) {
+            return back()->withErrors([
+                'gateway' => 'Não foi possível regenerar o endpoint. A URL atual foi preservada. '.$exception->getMessage(),
+            ]);
+        }
+    }
+
+    public function destroy(PaymentGatewayConfig $gateway, AuditLogger $audit): RedirectResponse
     {
         try {
+            $snapshot = $gateway->only(['id', 'driver', 'name', 'environment', 'active']);
             $gateway->delete();
+            $audit->record('payment_gateway.deleted', $gateway, $snapshot);
         } catch (Throwable $exception) {
             report($exception);
 
@@ -179,5 +235,24 @@ final class PaymentGatewayController extends Controller
         }
 
         return back()->with('success', 'Gateway removido.');
+    }
+
+    private function synchronizeGatewayWebhook(
+        PaymentGatewayConfig $gateway,
+        BillingManager $billing,
+        string $url,
+    ): array {
+        $result = $billing->forGateway($gateway)->synchronizeWebhook($gateway, $url);
+        $webhookId = (string) ($result['id'] ?? $gateway->setting('webhook_external_id', ''));
+
+        $gateway->mergeSettings([
+            'webhook_external_id' => $webhookId,
+            'webhook_url' => $url,
+            'webhook_synced_at' => now()->toIso8601String(),
+            'webhook_sync_status' => 'success',
+            'webhook_sync_message' => null,
+        ]);
+
+        return $result;
     }
 }

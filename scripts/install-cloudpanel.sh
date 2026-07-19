@@ -12,7 +12,7 @@ command_exists openssl || die "OpenSSL não encontrado."
 php_version="$($PHP_BIN -r 'echo PHP_VERSION_ID;')"
 [[ "$php_version" -ge 80300 ]] || die "PHP 8.3 ou superior é obrigatório."
 
-required_ext=(pdo mbstring openssl json intl curl)
+required_ext=(pdo mbstring openssl json intl curl dom bcmath fileinfo)
 for ext in "${required_ext[@]}"; do
   "$PHP_BIN" -m | grep -qi "^${ext}$" || die "Extensão PHP ausente: $ext"
 done

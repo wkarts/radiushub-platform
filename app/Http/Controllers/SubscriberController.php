@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\SubscriberRequest;
 use App\Models\Subscriber;
 use App\Services\Audit\AuditLogger;
+use App\Services\Limits\UsageLimitService;
+use App\Services\Tenancy\CompanyContext;
 use App\Support\Search;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,8 +33,9 @@ class SubscriberController extends Controller
         return view('subscribers.index', compact('subscribers'));
     }
 
-    public function store(SubscriberRequest $request, AuditLogger $audit): RedirectResponse
+    public function store(SubscriberRequest $request, AuditLogger $audit, UsageLimitService $limits, CompanyContext $company): RedirectResponse
     {
+        $limits->assertCompany($company->company(), 'subscribers');
         $subscriber = Subscriber::query()->create($request->validated());
         $audit->record('subscriber.created', $subscriber, [], $subscriber->toArray());
         return back()->with('success', 'Cliente cadastrado.');

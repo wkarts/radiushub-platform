@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ContractStatus;
+use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,9 +13,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ServiceContract extends Model
 {
-    use BelongsToTenant, HasFactory, HasUuids, SoftDeletes;
+    use BelongsToTenant, BelongsToCompany, HasFactory, HasUuids, SoftDeletes;
 
-    protected $fillable = ['subscriber_id', 'network_access_id', 'internet_plan_id', 'number', 'amount', 'billing_day', 'grace_days', 'status', 'started_at', 'ended_at', 'suspended_at', 'next_invoice_at', 'notes'];
+    protected $fillable = ['company_id', 'subscriber_id', 'network_access_id', 'internet_plan_id', 'number', 'amount', 'billing_day', 'grace_days', 'status', 'started_at', 'ended_at', 'suspended_at', 'next_invoice_at', 'notes'];
 
     protected function casts(): array
     {

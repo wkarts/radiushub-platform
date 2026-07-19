@@ -1,5 +1,21 @@
 # syntax=docker/dockerfile:1.7
-FROM composer:2.10 AS vendor
+FROM php:8.4-fpm-bookworm AS php-base
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl git gosu unzip openssh-client freeradius-utils \
+    libpq-dev default-libmysqlclient-dev libicu-dev libzip-dev libonig-dev \
+    libcurl4-openssl-dev libxml2-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j"$(nproc)" \
+       pdo_mysql mysqli pdo_pgsql pgsql bcmath pcntl intl zip opcache mbstring curl dom gd \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && rm -rf /var/lib/apt/lists/*
+
+FROM php-base AS vendor
+COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+ENV COMPOSER_ALLOW_SUPERUSER=1 COMPOSER_HOME=/tmp/composer
 WORKDIR /app
 COPY composer.json ./
 COPY packages/asaas-sdk-argws ./packages/asaas-sdk-argws
@@ -7,27 +23,16 @@ RUN composer install --no-dev --no-interaction --no-progress --prefer-dist --no-
 COPY . .
 RUN composer dump-autoload --no-dev --classmap-authoritative --no-interaction
 
-FROM php:8.4-fpm-bookworm
-ARG DEBIAN_FRONTEND=noninteractive
+FROM php-base AS runtime
 ARG VCS_REF=""
 ARG BUILD_DATE=""
-ARG VERSION="1.2.0"
+ARG VERSION="1.3.0"
 LABEL org.opencontainers.image.title="RadiusHub Platform" \
-      org.opencontainers.image.description="Laravel multi-tenant para MikroTik, FreeRADIUS e cobrança Asaas" \
+      org.opencontainers.image.description="Laravel multi-tenant para MikroTik por SSH Key, FreeRADIUS e cobrança Asaas" \
       org.opencontainers.image.version="$VERSION" \
       org.opencontainers.image.revision="$VCS_REF" \
       org.opencontainers.image.created="$BUILD_DATE" \
       org.opencontainers.image.source="https://github.com/wkarts/radiushub-platform"
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl git gosu unzip freeradius-utils \
-    libpq-dev default-libmysqlclient-dev libicu-dev libzip-dev libonig-dev \
-    libcurl4-openssl-dev libxml2-dev \
-    && docker-php-ext-install -j"$(nproc)" \
-       pdo_mysql mysqli pdo_pgsql pgsql bcmath pcntl intl zip opcache mbstring curl dom \
-    && pecl install redis \
-    && docker-php-ext-enable redis \
-    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /var/www/html
 COPY --from=vendor --chown=www-data:www-data /app /var/www/html

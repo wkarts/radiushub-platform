@@ -30,7 +30,7 @@ Não existe singleton global compartilhado entre empresas.
 - validação do cabeçalho `asaas-access-token`;
 - idempotência por ID do evento;
 - processamento assíncrono em fila dedicada `webhooks`;
-- baixa automática, reativação do contrato e Disconnect/CoA;
+- baixa automática, reativação do contrato e reinício controlado da sessão por SSH;
 - fallback de reconciliação a cada 30 minutos.
 
 ## Configuração
@@ -45,7 +45,7 @@ Não existe singleton global compartilhado entre empresas.
 A URL cadastrada será:
 
 ```text
-https://SEU-DOMINIO/webhooks/asaas/SLUG-DO-TENANT
+https://SEU-DOMINIO/webhooks/asaas/TOKEN-SECRETO-DO-GATEWAY
 ```
 
 ## Filas e Scheduler

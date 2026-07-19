@@ -2,12 +2,17 @@
 
 return [
     'header' => env('TENANCY_HEADER', 'X-Tenant-ID'),
+    'company_header' => env('COMPANY_HEADER', 'X-Company-ID'),
     'session_key' => 'current_tenant_id',
+    'company_session_key' => 'current_company_id',
     'roles' => [
-        'tenant_admin' => 'Administrador da empresa',
-        'network_admin' => 'Administrador de rede',
-        'billing' => 'Financeiro',
+        'platform_super_admin' => 'Superadministrador da plataforma',
+        'tenant_admin' => 'Administrador do tenant',
+        'company_admin' => 'Administrador da empresa',
         'operator' => 'Operador',
-        'viewer' => 'Somente leitura',
+        'attendant' => 'Atendente',
+        'technician' => 'Técnico',
+        'billing' => 'Financeiro',
+        'viewer' => 'Consulta',
     ],
 ];

@@ -1,0 +1,8 @@
+@extends('layouts.app')
+@section('title','Papéis e permissões')
+@section('content')
+<x-page-header title="Papéis e permissões" description="Controle granular das operações disponíveis para cada usuário da empresa."><x-slot:actions><button class="btn btn-primary" data-modal-open="role-create">＋ Novo perfil</button></x-slot:actions></x-page-header>
+<div class="card"><div class="table-wrap"><table><thead><tr><th>Perfil</th><th>Escopo</th><th>Permissões</th><th>Status</th><th></th></tr></thead><tbody>@forelse($roles as $role)<tr><td><div class="cell-title">{{ $role->name }}</div><div class="cell-subtitle">{{ $role->slug }}</div></td><td>{{ $role->scope }}</td><td>{{ $role->permissions->count() }}</td><td><x-status-badge :value="$role->active?'active':'inactive'" /></td><td><div class="table-actions"><button class="btn btn-secondary btn-sm" data-modal-open="role-edit-{{ $role->id }}">Editar</button><form method="post" action="{{ route('roles.destroy',$role) }}">@csrf @method('delete')<button class="btn btn-ghost btn-sm" data-confirm="Excluir este perfil?">Excluir</button></form></div></td></tr>@empty<tr><td colspan="5"><x-empty-state /></td></tr>@endforelse</tbody></table></div>@include('partials.pagination',['paginator'=>$roles])</div>
+<x-modal id="role-create" title="Novo perfil" size="lg"><form method="post" action="{{ route('roles.store') }}">@csrf @include('roles._form',['role'=>null])</form></x-modal>
+@foreach($roles as $role)<x-modal id="role-edit-{{ $role->id }}" title="Editar perfil" size="lg"><form method="post" action="{{ route('roles.update',$role) }}">@csrf @method('put') @include('roles._form',['role'=>$role])</form></x-modal>@endforeach
+@endsection
