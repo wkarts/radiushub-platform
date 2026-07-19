@@ -11,7 +11,7 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\PaymentRefund;
 use App\Models\RadiusAccounting;
-use App\Services\Radius\CoaService;
+use App\Services\Mikrotik\MikrotikSessionControlService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -22,7 +22,7 @@ class InvoiceService
 {
     public function __construct(
         private readonly BillingManager $billing,
-        private readonly CoaService $coa,
+        private readonly MikrotikSessionControlService $sessions,
     ) {
     }
 
@@ -199,7 +199,7 @@ class InvoiceService
                 ->with('mikrotik')
                 ->each(function (RadiusAccounting $session): void {
                     try {
-                        $this->coa->disconnect($session, 'Administrative-Reset');
+                        $this->sessions->disconnect($session);
                     } catch (Throwable $exception) {
                         Log::warning('Pagamento confirmado, mas a sessão não pôde ser reiniciada.', [
                             'session_id' => $session->id,

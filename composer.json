@@ -4,13 +4,16 @@
     "type": "project",
     "description": "Plataforma multi-tenant Laravel para Hotspot, PPPoE, FreeRADIUS, MikroTik e cobrança.",
     "keywords": [
-        "laravel",
+        "billing",
         "freeradius",
-        "mikrotik",
         "hotspot",
-        "pppoe",
+        "laravel",
+        "mikrotik",
         "multi-tenant",
-        "billing"
+        "pppoe",
+        "rbac",
+        "ssh",
+        "voucher"
     ],
     "license": "proprietary",
     "require": {
@@ -21,7 +24,10 @@
         "ext-mbstring": "*",
         "ext-openssl": "*",
         "laravel/tinker": "^3.0",
-        "php": "^8.3"
+        "php": "^8.3",
+        "phpseclib/phpseclib": "^3.0.55",
+        "barryvdh/laravel-dompdf": "^3.1",
+        "pragmarx/google2fa": "^9.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.24",

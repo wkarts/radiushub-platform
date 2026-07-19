@@ -1,0 +1,10 @@
+@php
+    $settings = $batch->settings ?? [];
+    $columns = max(1, min(4, (int) ($settings['print_columns'] ?? 3)));
+    $showCompany = (bool) ($settings['print_show_company'] ?? true);
+    $showPassword = (bool) ($settings['print_show_password'] ?? true);
+    $title = trim((string) ($settings['print_title'] ?? $batch->name));
+    $footer = trim((string) ($settings['print_footer'] ?? ''));
+    $width = floor(100 / $columns);
+@endphp
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>{{ $batch->name }}</title><style>@page{margin:12mm}body{font:12px DejaVu Sans,sans-serif;color:#111}h1{font-size:18px;margin:0 0 12px}.grid{width:100%;border-collapse:separate;border-spacing:6px}.ticket{border:1px dashed #333;padding:10px;vertical-align:top}.code{font:700 17px DejaVu Sans Mono,monospace;letter-spacing:.05em;margin:7px 0}.muted{font-size:9px;color:#555;margin-top:4px}.footer{text-align:center;margin-top:14px;font-size:9px;color:#555}</style></head><body><h1>{{ $title ?: $batch->name }}</h1><table class="grid"><tbody>@foreach($batch->vouchers->chunk($columns) as $row)<tr>@foreach($row as $voucher)<td class="ticket" width="{{ $width }}%">@if($showCompany)<strong>{{ $currentCompany?->trade_name ?: $currentCompany?->legal_name ?: config('app.name') }}</strong>@endif<div class="code">{{ $credentials[$voucher->id]['code'] }}</div>@if($showPassword)<div>Senha: <b>{{ $credentials[$voucher->id]['password'] }}</b></div>@endif<div class="muted">{{ $voucher->profile?->name ?: $voucher->plan?->name ?: 'Acesso temporário' }}</div><div class="muted">Validade: {{ optional($voucher->expires_at)->format('d/m/Y H:i') ?: ($voucher->validity_duration_minutes ? $voucher->validity_duration_minutes.' min após primeiro acesso' : 'Sem expiração') }}</div>@if($voucher->speed_limit)<div class="muted">Velocidade: {{ $voucher->speed_limit }}</div>@endif</td>@endforeach @for($i=$row->count();$i<$columns;$i++)<td width="{{ $width }}%"></td>@endfor</tr>@endforeach</tbody></table>@if($footer)<div class="footer">{{ $footer }}</div>@endif</body></html>

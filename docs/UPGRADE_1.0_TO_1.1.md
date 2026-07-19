@@ -30,7 +30,7 @@ php artisan queue:restart
 2. Cadastre o driver **Asaas SDK ARGWS**.
 3. Informe a API Key do Sandbox ou Produção.
 4. Salve, execute **Testar conexão** e depois **Sincronizar webhook**.
-5. Confirme que o worker processa as filas `webhooks,default`.
+5. Confirme que o worker processa as filas `network,webhooks,default`.
 
 ## Alteração de API Key ou ambiente
 

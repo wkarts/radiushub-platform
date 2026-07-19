@@ -6,14 +6,17 @@ namespace App\Jobs;
 
 use App\Enums\InvoiceStatus;
 use App\Models\Invoice;
+use App\Models\PaymentGatewayConfig;
 use App\Models\PaymentRefund;
 use App\Models\WebhookEvent;
 use App\Services\Billing\Asaas\AsaasWebhookEventMapper;
 use App\Services\Billing\InvoiceService;
+use App\Services\Tenancy\CompanyContext;
 use App\Services\Tenancy\TenantContext;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
+use RuntimeException;
 use Throwable;
 
 final class ProcessAsaasWebhook implements ShouldQueue
@@ -37,26 +40,68 @@ final class ProcessAsaasWebhook implements ShouldQueue
     }
 
     public function handle(
-        TenantContext $context,
+        TenantContext $tenantContext,
+        CompanyContext $companyContext,
         InvoiceService $invoiceService,
         AsaasWebhookEventMapper $mapper,
     ): void {
-        $event = WebhookEvent::withoutGlobalScopes()->with('tenant')->findOrFail($this->eventId);
-        $context->set($event->tenant);
+        $event = WebhookEvent::withoutGlobalScopes()
+            ->with(['tenant', 'company', 'gateway'])
+            ->findOrFail($this->eventId);
+
+        $gateway = $event->gateway ?? $this->resolveLegacyGateway($event);
+        if (! $gateway) {
+            $event->update([
+                'status' => 'failed',
+                'error' => 'Não foi possível identificar de forma inequívoca o gateway Asaas do evento.',
+            ]);
+
+            throw new RuntimeException('Gateway Asaas não identificado para o webhook '.$event->id.'.');
+        }
+
+        if ((string) $gateway->tenant_id !== (string) $event->tenant_id
+            || ($event->company_id !== null && (string) $gateway->company_id !== (string) $event->company_id)) {
+            $event->update([
+                'status' => 'failed',
+                'error' => 'O gateway do evento não pertence ao tenant/empresa registrados.',
+            ]);
+
+            throw new RuntimeException('Inconsistência de isolamento multiempresa no webhook '.$event->id.'.');
+        }
+
+        $tenantContext->set($event->tenant ?? $gateway->tenant);
+        $companyContext->set($event->company ?? $gateway->company);
 
         try {
             if ($event->processed_at) {
                 return;
             }
 
+            if (! $gateway->active) {
+                $event->update([
+                    'status' => 'ignored',
+                    'error' => 'Gateway desativado.',
+                    'processed_at' => now(),
+                ]);
+
+                return;
+            }
+
+            if (! $event->payment_gateway_config_id || ! $event->company_id) {
+                $event->update([
+                    'payment_gateway_config_id' => $gateway->id,
+                    'company_id' => $gateway->company_id,
+                ]);
+            }
+
             $event->update(['status' => 'processing', 'error' => null]);
             $payment = (array) data_get($event->payload, 'payment', []);
-            $invoice = $this->findInvoice($payment);
+            $invoice = $this->findInvoice($payment, $gateway);
 
             if (! $invoice) {
                 $event->update([
                     'status' => 'ignored',
-                    'error' => 'Cobrança não vinculada a uma fatura RadiusHub.',
+                    'error' => 'Cobrança não vinculada a uma fatura desta empresa e deste gateway.',
                     'processed_at' => now(),
                 ]);
 
@@ -110,7 +155,8 @@ final class ProcessAsaasWebhook implements ShouldQueue
 
             throw $exception;
         } finally {
-            $context->clear();
+            $companyContext->clear();
+            $tenantContext->clear();
         }
     }
 
@@ -121,7 +167,10 @@ final class ProcessAsaasWebhook implements ShouldQueue
         array $payment,
         ?InvoiceStatus $mappedStatus,
     ): void {
-        if (PaymentRefund::query()->where('external_id', $event->external_event_id)->exists()) {
+        if (PaymentRefund::query()
+            ->where('invoice_id', $invoice->id)
+            ->where('external_id', $event->external_event_id)
+            ->exists()) {
             if ($mappedStatus !== null) {
                 $invoice->update(['status' => $mappedStatus]);
             }
@@ -163,7 +212,7 @@ final class ProcessAsaasWebhook implements ShouldQueue
     }
 
     /** @param array<string, mixed> $payment */
-    private function findInvoice(array $payment): ?Invoice
+    private function findInvoice(array $payment, PaymentGatewayConfig $gateway): ?Invoice
     {
         $paymentId = trim((string) ($payment['id'] ?? ''));
         $externalReference = trim((string) ($payment['externalReference'] ?? ''));
@@ -180,6 +229,9 @@ final class ProcessAsaasWebhook implements ShouldQueue
         }
 
         return Invoice::query()
+            ->where('tenant_id', $gateway->tenant_id)
+            ->where('company_id', $gateway->company_id)
+            ->where('payment_gateway_config_id', $gateway->id)
             ->where(function ($query) use ($paymentId, $localId): void {
                 if ($paymentId !== '') {
                     $query->where('external_id', $paymentId);
@@ -192,5 +244,21 @@ final class ProcessAsaasWebhook implements ShouldQueue
                 }
             })
             ->first();
+    }
+
+    private function resolveLegacyGateway(WebhookEvent $event): ?PaymentGatewayConfig
+    {
+        $query = PaymentGatewayConfig::withoutGlobalScopes()
+            ->with(['tenant', 'company'])
+            ->where('tenant_id', $event->tenant_id)
+            ->where('driver', 'asaas');
+
+        if ($event->company_id) {
+            $query->where('company_id', $event->company_id);
+        }
+
+        $gateways = $query->limit(2)->get();
+
+        return $gateways->count() === 1 ? $gateways->first() : null;
     }
 }

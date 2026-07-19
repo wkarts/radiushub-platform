@@ -1,14 +1,4 @@
 @php($u=$user??null)
-<div class="form-grid">
-    <div class="col-6"><label>Nome</label><input name="name" value="{{ old('name',$u?->name) }}" required></div>
-    <div class="col-6"><label>E-mail</label><input type="email" name="email" value="{{ old('email',$u?->email) }}" required></div>
-    <div class="col-4"><label>Perfil</label><select name="role" required>
-        @foreach(['tenant_admin'=>'Administrador da empresa','network_admin'=>'Administrador de rede','billing'=>'Financeiro','operator'=>'Operador','viewer'=>'Somente leitura'] as $value=>$label)
-            <option value="{{ $value }}" @selected(old('role',$u?->pivot?->role??'operator')===$value)>{{ $label }}</option>
-        @endforeach
-    </select></div>
-    <div class="col-4"><label>Senha {{ $u?'(vazio mantém)':'' }}</label><input type="password" name="password" @required(!$u) autocomplete="new-password"></div>
-    <div class="col-4"><label>Confirmar senha</label><input type="password" name="password_confirmation" @required(!$u) autocomplete="new-password"></div>
-    <div class="col-12"><label class="checkbox"><input type="checkbox" name="active" value="1" @checked(old('active',$u?->active??true))> Usuário ativo</label></div>
-</div>
-<div class="modal-footer"><button type="button" class="btn btn-secondary" data-modal-close>Cancelar</button><button class="btn btn-primary" type="submit">Salvar usuário</button></div>
+<div class="section-card"><h3 class="section-title">Identificação</h3><div class="form-grid"><div class="col-5"><label>Nome</label><input name="name" value="{{ old('name',$u?->name) }}" required></div><div class="col-3"><label>Login</label><input name="login" value="{{ old('login',$u?->login) }}"></div><div class="col-4"><label>E-mail</label><input type="email" name="email" value="{{ old('email',$u?->email) }}" required></div><div class="col-6"><label>Perfil da empresa</label><select name="role_id" required><option value="">Selecione</option>@foreach($roles as $role)<option value="{{ $role->id }}" @selected(old('role_id',$u?->pivot?->role_id)===$role->id)>{{ $role->name }}</option>@endforeach</select></div><div class="col-3"><label class="checkbox"><input type="checkbox" name="tenant_admin" value="1" @checked(old('tenant_admin',$u?->roleForTenant($currentTenant?->id)==='tenant_admin'))> Administrador do tenant</label></div><div class="col-3"><label class="checkbox"><input type="checkbox" name="active" value="1" @checked(old('active',$u?->active??true))> Usuário ativo</label></div></div></div>
+<div class="section-card"><h3 class="section-title">Senha e segurança</h3><div class="form-grid"><div class="col-6"><label>Senha {{ $u?'(vazio mantém)':'' }}</label><input type="password" name="password" @required(!$u) autocomplete="new-password"></div><div class="col-6"><label>Confirmar senha</label><input type="password" name="password_confirmation" @required(!$u) autocomplete="new-password"></div><div class="col-12"><label class="checkbox"><input type="checkbox" name="must_change_password" value="1" @checked(old('must_change_password',$u?->must_change_password??true))> Exigir troca de senha no próximo acesso</label></div></div></div>
+<div class="modal-footer"><button type="button" class="btn btn-secondary" data-modal-close>Cancelar</button><button class="btn btn-primary">Salvar usuário</button></div>

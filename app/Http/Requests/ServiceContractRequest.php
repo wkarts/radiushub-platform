@@ -15,10 +15,10 @@ class ServiceContractRequest extends TenantAwareRequest
         $contract = $this->route('contract');
 
         return [
-            'subscriber_id' => ['required', 'uuid', Rule::exists('subscribers', 'id')->where(fn ($q) => $q->where('tenant_id', $this->tenantId()))],
-            'network_access_id' => ['required', 'uuid', Rule::exists('network_accesses', 'id')->where(fn ($q) => $q->where('tenant_id', $this->tenantId()))],
-            'internet_plan_id' => ['required', 'uuid', Rule::exists('internet_plans', 'id')->where(fn ($q) => $q->where('tenant_id', $this->tenantId()))],
-            'number' => ['required', 'string', 'max:60', Rule::unique('service_contracts', 'number')->where(fn ($q) => $q->where('tenant_id', $this->tenantId()))->ignore($contract?->id)],
+            'subscriber_id' => ['required', 'uuid', Rule::exists('subscribers', 'id')->where(fn ($q) => $q->where('tenant_id', $this->tenantId())->where('company_id', $this->companyId()))],
+            'network_access_id' => ['required', 'uuid', Rule::exists('network_accesses', 'id')->where(fn ($q) => $q->where('tenant_id', $this->tenantId())->where('company_id', $this->companyId()))],
+            'internet_plan_id' => ['required', 'uuid', Rule::exists('internet_plans', 'id')->where(fn ($q) => $q->where('tenant_id', $this->tenantId())->where('company_id', $this->companyId()))],
+            'number' => ['required', 'string', 'max:60', Rule::unique('service_contracts', 'number')->where(fn ($q) => $q->where('tenant_id', $this->tenantId())->where('company_id', $this->companyId()))->ignore($contract?->id)],
             'amount' => ['required', 'numeric', 'min:0'],
             'billing_day' => ['required', 'integer', 'between:1,28'],
             'grace_days' => ['required', 'integer', 'between:0,60'],

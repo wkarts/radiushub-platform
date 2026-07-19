@@ -26,6 +26,8 @@ class CoaService
         ]);
 
         $request = CoaRequest::query()->create([
+            'tenant_id' => $device->tenant_id,
+            'company_id' => $device->company_id,
             'mikrotik_device_id' => $device->id,
             'radius_accounting_id' => $session->id,
             'type' => 'disconnect',
@@ -50,7 +52,7 @@ class CoaService
     {
         $device = $session->mikrotik ?: MikrotikDevice::query()->where('radius_source_ip', $session->nas_ip_address)->firstOrFail();
         $attributes = array_filter(['User-Name'=>$session->username,'Acct-Session-Id'=>$session->acct_session_id,'NAS-IP-Address'=>$session->nas_ip_address,'Mikrotik-Rate-Limit'=>$rateLimit]);
-        $request = CoaRequest::query()->create(['mikrotik_device_id'=>$device->id,'radius_accounting_id'=>$session->id,'type'=>'coa','status'=>'pending','attributes'=>$attributes,'requested_by'=>auth()->id(),'requested_at'=>now()]);
+        $request = CoaRequest::query()->create(['tenant_id'=>$device->tenant_id,'company_id'=>$device->company_id,'mikrotik_device_id'=>$device->id,'radius_accounting_id'=>$session->id,'type'=>'coa','status'=>'pending','attributes'=>$attributes,'requested_by'=>auth()->id(),'requested_at'=>now()]);
         try { $response=$this->client->send($device->management_host,(int)$device->coa_port,'coa',$this->vault->decrypt($device->radius_secret_ciphertext),$attributes); $request->update(['status'=>'acknowledged','response'=>$response,'completed_at'=>now()]); }
         catch(Throwable $e){ $request->update(['status'=>'failed','response'=>['error'=>$e->getMessage()],'completed_at'=>now()]); throw $e; }
         return $request;

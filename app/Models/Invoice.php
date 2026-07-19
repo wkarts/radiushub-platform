@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\InvoiceStatus;
+use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,9 +16,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Invoice extends Model
 {
-    use BelongsToTenant, HasFactory, HasUuids, SoftDeletes;
+    use BelongsToTenant, BelongsToCompany, HasFactory, HasUuids, SoftDeletes;
 
     protected $fillable = [
+        'company_id',
         'subscriber_id',
         'service_contract_id',
         'number',

@@ -4,26 +4,37 @@ namespace App\Console\Commands;
 
 use App\Models\MikrotikDevice;
 use App\Models\Tenant;
-use App\Services\Mikrotik\MikrotikService;
+use App\Services\Mikrotik\MikrotikSshService;
+use App\Services\Tenancy\CompanyContext;
 use App\Services\Tenancy\TenantContext;
 use Illuminate\Console\Command;
 
 class NetworkHealthCheck extends Command
 {
     protected $signature = 'network:health-check';
-    protected $description = 'Testa os MikroTiks ativos.';
+    protected $description = 'Testa por SSH Key os MikroTiks ativos.';
 
-    public function handle(TenantContext $context, MikrotikService $service): int
-    {
-        Tenant::query()->where('active', true)->each(function (Tenant $tenant) use ($context, $service): void {
-            $context->set($tenant);
+    public function handle(
+        TenantContext $tenantContext,
+        CompanyContext $companyContext,
+        MikrotikSshService $service,
+    ): int {
+        Tenant::query()->where('active', true)->each(function (Tenant $tenant) use ($tenantContext, $companyContext, $service): void {
+            $tenantContext->set($tenant);
 
             try {
                 MikrotikDevice::query()
+                    ->withoutGlobalScopes(['tenant', 'company'])
+                    ->where('tenant_id', $tenant->id)
                     ->where('active', true)
-                    ->each(fn (MikrotikDevice $device) => $service->test($device));
+                    ->with('company')
+                    ->each(function (MikrotikDevice $device) use ($companyContext, $service): void {
+                        $companyContext->set($device->company);
+                        $service->test($device);
+                    });
             } finally {
-                $context->clear();
+                $companyContext->clear();
+                $tenantContext->clear();
             }
         });
 

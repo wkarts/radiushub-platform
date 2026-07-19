@@ -29,8 +29,8 @@ class InvoiceRequest extends TenantAwareRequest
     public function rules(): array
     {
         return [
-            'subscriber_id' => ['required', 'uuid', Rule::exists('subscribers', 'id')->where(fn ($query) => $query->where('tenant_id', $this->tenantId()))],
-            'service_contract_id' => ['nullable', 'uuid', Rule::exists('service_contracts', 'id')->where(fn ($query) => $query->where('tenant_id', $this->tenantId()))],
+            'subscriber_id' => ['required', 'uuid', Rule::exists('subscribers', 'id')->where(fn ($query) => $query->where('tenant_id', $this->tenantId())->where('company_id', $this->companyId()))],
+            'service_contract_id' => ['nullable', 'uuid', Rule::exists('service_contracts', 'id')->where(fn ($query) => $query->where('tenant_id', $this->tenantId())->where('company_id', $this->companyId()))],
             'description' => ['required', 'string', 'max:255'],
             'issue_date' => ['required', 'date'],
             'due_date' => ['required', 'date', 'after_or_equal:issue_date'],
@@ -41,6 +41,7 @@ class InvoiceRequest extends TenantAwareRequest
                 'uuid',
                 Rule::exists('payment_gateway_configs', 'id')->where(fn ($query) => $query
                     ->where('tenant_id', $this->tenantId())
+                    ->where('company_id', $this->companyId())
                     ->where('active', true)
                     ->where('driver', 'asaas')),
             ],

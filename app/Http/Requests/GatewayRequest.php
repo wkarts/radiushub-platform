@@ -17,7 +17,13 @@ final class GatewayRequest extends TenantAwareRequest
     public function rules(): array
     {
         return [
-            'driver' => ['required', Rule::in(['manual', 'asaas'])],
+            'driver' => [
+                'required',
+                Rule::in(['manual', 'asaas']),
+                Rule::unique('payment_gateway_configs', 'driver')
+                    ->where(fn ($query) => $query->where('tenant_id', $this->tenantId())->where('company_id', $this->companyId()))
+                    ->ignore($this->route('gateway')?->id),
+            ],
             'name' => ['required', 'string', 'max:120'],
             'environment' => ['required', Rule::in(['sandbox', 'production'])],
             'active' => ['nullable', 'boolean'],

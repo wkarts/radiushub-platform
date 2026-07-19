@@ -12,6 +12,7 @@ trap '"$PHP_BIN" artisan up >/dev/null 2>&1 || true' EXIT
 rm -f bootstrap/cache/config.php bootstrap/cache/events.php bootstrap/cache/routes-*.php
 "$PHP_BIN" artisan optimize:clear
 "$PHP_BIN" artisan migrate --force
+"$PHP_BIN" artisan asaas:webhooks:sync || warn "Sincronização remota dos webhooks Asaas pendente."
 "$PHP_BIN" artisan storage:link --force || true
 "$PHP_BIN" artisan config:cache
 "$PHP_BIN" artisan view:cache

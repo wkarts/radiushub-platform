@@ -17,6 +17,7 @@ class ProfileRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->user()?->id)],
+            'login' => ['nullable', 'alpha_dash', 'max:80', Rule::unique('users', 'login')->ignore($this->user()?->id)],
             'current_password' => ['required_with:password', 'nullable', 'current_password'],
             'password' => ['nullable', 'string', 'min:12', 'confirmed'],
         ];
