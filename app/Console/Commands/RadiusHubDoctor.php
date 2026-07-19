@@ -64,7 +64,25 @@ class RadiusHubDoctor extends Command
             $warnings++;
         }
 
-        $sshDevices = MikrotikDevice::query()->withoutGlobalScopes(['tenant', 'company'])->where('active', true)->get();
+        $allDevices = MikrotikDevice::query()->withoutGlobalScopes(['tenant', 'company'])->where('active', true)->get();
+        $sshDevices = $allDevices->where('connection_method', 'ssh');
+        $simulatedDevices = $allDevices->where('connection_method', 'simulator');
+
+        if (config('playground.enabled')) {
+            $this->components->twoColumnDetail('Modo playground', '<fg=yellow>habilitado</>');
+            if (app()->environment('production') && ! config('playground.allow_production')) {
+                $this->error('PLAYGROUND_MODE está habilitado em produção sem autorização explícita.');
+                $errors++;
+            }
+        } elseif ($simulatedDevices->isNotEmpty()) {
+            $this->error('Existem equipamentos simulados fora do modo playground.');
+            $errors++;
+        }
+
+        if ($simulatedDevices->isNotEmpty()) {
+            $this->components->twoColumnDetail('MikroTik simulados', '<fg=yellow>'.$simulatedDevices->count().'</>');
+        }
+
         $missingSshKeys = $sshDevices->whereNull('ssh_private_key_ciphertext')->count();
         $invalidSshKeys = $sshDevices->filter(function (MikrotikDevice $device) use ($sshVault): bool {
             if (! $device->ssh_private_key_ciphertext) return false;

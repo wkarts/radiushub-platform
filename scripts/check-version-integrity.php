@@ -60,6 +60,8 @@ foreach ([
     '.env.cloudpanel.example',
     '.env.docker.mysql.example',
     '.env.docker.postgres.example',
+    '.env.playground.example',
+    '.env.cloudpanel.playground.example',
 ] as $file) {
     $expectLine($file, 'APP_VERSION=', $version);
 }
@@ -67,6 +69,7 @@ foreach ([
 foreach ([
     '.env.docker.mysql.example',
     '.env.docker.postgres.example',
+    '.env.playground.example',
 ] as $file) {
     $expectLine($file, 'RADIUSHUB_TAG=', $version);
 }
@@ -80,6 +83,27 @@ $checks = [
         "radiushub-app:\${RADIUSHUB_TAG:-{$version}}",
         "radiushub-web:\${RADIUSHUB_TAG:-{$version}}",
         "radiushub-freeradius:\${RADIUSHUB_TAG:-{$version}}",
+    ],
+    'docker-compose.playground.yml' => [
+        'PLAYGROUND_MODE:',
+        'PLAYGROUND_MIKROTIK_SIMULATOR:',
+        '127.0.0.1',
+    ],
+    'scripts/playground.sh' => [
+        'radiushub:playground:verify',
+        '/health/ready',
+        'docker-compose.playground.yml',
+        'smoke-radius.sh',
+    ],
+    'scripts/smoke-radius.sh' => [
+        'Access-Accept',
+        'Accounting-Response',
+        'radiushub:playground:verify',
+    ],
+    'scripts/validate-deployment.sh' => [
+        'radiushub:health --ready',
+        'radiushub:doctor',
+        'DEPLOYMENT_VALIDATION_OK',
     ],
     '.github/workflows/release.yml' => [
         "workflow_run:",

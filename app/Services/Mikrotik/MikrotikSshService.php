@@ -20,6 +20,7 @@ final class MikrotikSshService
         private readonly SshKeyVault $vault,
         private readonly RouterOsCommandBuilder $commands,
         private readonly SensitiveDataSanitizer $sanitizer,
+        private readonly ?MikrotikSimulatorService $simulator = null,
     ) {}
 
     public function generateKeyPair(?int $bits = null): array
@@ -47,6 +48,18 @@ final class MikrotikSshService
 
     public function test(MikrotikDevice $device): array
     {
+        if ($device->connection_method === 'simulator') {
+            try {
+                if (! $this->simulator) {
+                    throw new RuntimeException('Simulador MikroTik indisponível no container de serviços.');
+                }
+
+                return $this->simulator->test($device);
+            } catch (Throwable $exception) {
+                return ['ok' => false, 'error' => $exception->getMessage()];
+            }
+        }
+
         $started = microtime(true);
 
         try {
@@ -83,6 +96,18 @@ final class MikrotikSshService
 
     public function executeApproved(MikrotikDevice $device, string $commandKey, array $parameters = []): array
     {
+        if ($device->connection_method === 'simulator') {
+            try {
+                if (! $this->simulator) {
+                    throw new RuntimeException('Simulador MikroTik indisponível no container de serviços.');
+                }
+
+                return $this->simulator->executeApproved($device, $commandKey, $parameters);
+            } catch (Throwable $exception) {
+                return ['ok' => false, 'error' => $exception->getMessage()];
+            }
+        }
+
         $started = microtime(true);
         $command = '';
 

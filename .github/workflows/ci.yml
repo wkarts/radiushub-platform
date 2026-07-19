@@ -38,6 +38,7 @@ jobs:
       - run: composer install --no-interaction --prefer-dist
       - run: composer migrations:check
       - run: composer version:check
+      - run: composer planning:check
       - name: Preparar ambiente de testes
         run: cp .env.example .env.testing
       - run: composer lint
@@ -87,6 +88,7 @@ jobs:
       - run: composer install --no-interaction --prefer-dist
       - run: composer migrations:check
       - run: composer version:check
+      - run: composer planning:check
       - run: cp .env.docker.postgres.example .env
       - run: php artisan migrate --force
       - run: php artisan db:seed --force
@@ -135,6 +137,7 @@ jobs:
       - run: composer install --no-interaction --prefer-dist
       - run: composer migrations:check
       - run: composer version:check
+      - run: composer planning:check
       - run: cp .env.docker.mysql.example .env
       - run: php artisan migrate --force
       - run: php artisan db:seed --force
@@ -166,3 +169,107 @@ jobs:
           tags: radiushub-${{ matrix.image }}:ci
           cache-from: type=gha,scope=ci-${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=ci-${{ matrix.image }}
+
+  docker-playground-smoke:
+    name: Docker Playground / smoke completo
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v6
+      - name: Preparar playground
+        run: |
+          cp .env.playground.example .env.playground
+          sed -i 's|^APP_KEY=.*|APP_KEY=base64:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=|' .env.playground
+          sed -i 's|^DB_PASSWORD=.*|DB_PASSWORD=radiushub-playground-ci|' .env.playground
+          sed -i 's|^RADIUS_CREDENTIAL_KEY=.*|RADIUS_CREDENTIAL_KEY=ci-radius-credential-key-long-enough-123456|' .env.playground
+          sed -i 's|^RADIUS_LOCAL_SECRET=.*|RADIUS_LOCAL_SECRET=ci-local-radius-secret-long-enough|' .env.playground
+          sed -i 's|^SEED_ADMIN_PASSWORD=.*|SEED_ADMIN_PASSWORD=PlaygroundCI@123!|' .env.playground
+          sed -i 's|^PLAYGROUND_ADMIN_PASSWORD=.*|PLAYGROUND_ADMIN_PASSWORD=PlaygroundCI@123!|' .env.playground
+          chmod 600 .env.playground
+      - name: Iniciar playground Docker pelo fluxo CloudPanel
+        run: ./scripts/install-cloudpanel-docker.sh --playground --url http://127.0.0.1:8080
+      - name: Validar proxy gerado e autenticação
+        env:
+          ENV_FILE: .env.playground
+        run: |
+          test -s storage/app/deploy/nginx-docker-reverse-proxy.conf
+          grep -q 'proxy_pass http://127.0.0.1:8080' storage/app/deploy/nginx-docker-reverse-proxy.conf
+          ./scripts/validate-deployment.sh --http --login --url http://127.0.0.1:8080
+      - name: Estado final
+        if: always()
+        run: |
+          ENV_FILE=.env.playground ./scripts/playground.sh status || true
+          ENV_FILE=.env.playground ./scripts/playground.sh logs || true
+      - name: Encerrar playground
+        if: always()
+        run: ENV_FILE=.env.playground ./scripts/playground.sh down || true
+
+  cloudpanel-native-smoke:
+    name: CloudPanel nativo / smoke de aplicação
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: radiushub_cloudpanel
+          POSTGRES_USER: radiushub
+          POSTGRES_PASSWORD: radiushub-cloudpanel-ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd="pg_isready -U radiushub -d radiushub_cloudpanel"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, pgsql, mbstring, openssl, json, intl, curl, dom, bcmath, fileinfo
+          coverage: none
+          tools: composer:v2
+      - name: Preparar .env nativo de playground
+        run: |
+          cp .env.cloudpanel.playground.example .env
+          sed -i 's|^APP_KEY=.*|APP_KEY=base64:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=|' .env
+          sed -i 's|^APP_URL=.*|APP_URL=http://127.0.0.1:8090|' .env
+          sed -i 's|^DB_CONNECTION=.*|DB_CONNECTION=pgsql|' .env
+          sed -i 's|^DB_HOST=.*|DB_HOST=127.0.0.1|' .env
+          sed -i 's|^DB_PORT=.*|DB_PORT=5432|' .env
+          sed -i 's|^DB_DATABASE=.*|DB_DATABASE=radiushub_cloudpanel|' .env
+          sed -i 's|^DB_USERNAME=.*|DB_USERNAME=radiushub|' .env
+          sed -i 's|^DB_PASSWORD=.*|DB_PASSWORD=radiushub-cloudpanel-ci|' .env
+          sed -i 's|^SESSION_SECURE_COOKIE=.*|SESSION_SECURE_COOKIE=false|' .env
+          sed -i 's|^RADIUS_CREDENTIAL_KEY=.*|RADIUS_CREDENTIAL_KEY=ci-radius-credential-key-long-enough-123456|' .env
+          sed -i 's|^RADIUS_LOCAL_SECRET=.*|RADIUS_LOCAL_SECRET=ci-local-radius-secret-long-enough|' .env
+          sed -i 's|^SEED_ADMIN_PASSWORD=.*|SEED_ADMIN_PASSWORD=CloudPanelCI@123!|' .env
+          sed -i 's|^PLAYGROUND_ADMIN_PASSWORD=.*|PLAYGROUND_ADMIN_PASSWORD=CloudPanelCI@123!|' .env
+          chmod 600 .env
+      - name: Instalar como CloudPanel nativo
+        run: ./scripts/install-cloudpanel-playground.sh --reuse-env
+      - name: Iniciar servidor de smoke
+        run: |
+          php -S 127.0.0.1:8090 -t public > storage/logs/cloudpanel-smoke-server.log 2>&1 &
+          echo $! > /tmp/radiushub-server.pid
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8090/health/ready && exit 0; sleep 1; done
+          cat storage/logs/cloudpanel-smoke-server.log
+          exit 1
+      - name: Validar HTTP e autenticação
+        env:
+          APP_URL: http://127.0.0.1:8090
+          PLAYGROUND_ADMIN_EMAIL: admin@playground.local
+          PLAYGROUND_ADMIN_PASSWORD: CloudPanelCI@123!
+        run: ./scripts/smoke-http.sh
+      - name: Validar artefatos do CloudPanel
+        run: |
+          test -s storage/app/deploy/supervisor-radiushub.conf
+          test -s storage/app/deploy/cron.txt
+          test -s storage/app/deploy/nginx-native.conf
+          test -s storage/app/deploy/nginx-docker-reverse-proxy.conf
+          php artisan radiushub:health --ready
+          php artisan radiushub:playground:verify
+      - name: Mostrar log em caso de falha
+        if: failure()
+        run: |
+          cat storage/logs/cloudpanel-smoke-server.log || true
+          tail -n 300 storage/logs/laravel.log || true

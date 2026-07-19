@@ -78,6 +78,9 @@
         "version:check": [
             "@php scripts/check-version-integrity.php"
         ],
+        "planning:check": [
+            "@php scripts/check-planning-compliance.php"
+        ],
         "doctor": [
             "@php artisan radiushub:doctor"
         ],
@@ -86,6 +89,18 @@
         ],
         "test:feature": [
             "@php artisan test --testsuite=Feature"
+        ],
+        "playground:verify": [
+            "@php artisan radiushub:playground:verify"
+        ],
+        "health:ready": [
+            "@php artisan radiushub:health --ready"
+        ],
+        "smoke:http": [
+            "bash scripts/smoke-http.sh"
+        ],
+        "deployment:check": [
+            "bash scripts/validate-deployment.sh"
         ]
     },
     "extra": {

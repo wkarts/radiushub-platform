@@ -1,5 +1,42 @@
 # Changelog
 
+## 1.4.0 — 2026-07-19
+
+### Adicionado
+
+- playground Docker completo com PostgreSQL, Redis, Laravel, Nginx, worker, Scheduler e FreeRADIUS;
+- playground nativo para CloudPanel com domínio/banco isolados;
+- instalador integrado Docker + reverse proxy CloudPanel para produção ou playground;
+- simulador MikroTik limitado ao modo playground;
+- dados demonstrativos multiempresa, acessos, vouchers, financeiro, accounting e auditoria;
+- endpoints `/health/live` e `/health/ready` e comando `radiushub:health`;
+- smoke de login HTTP, RADIUS `Access-Accept` e accounting `Accounting-Response`;
+- verificação pós-deploy por `scripts/validate-deployment.sh`;
+- dependências de saúde entre app, worker, Scheduler, Nginx e FreeRADIUS no Compose;
+- CI de playground Docker e instalação nativa semelhante ao CloudPanel;
+- contrato automatizado de conformidade para rotas, domínio, RBAC, interface e deploy;
+- comando independente `scripts/check-planning-compliance.php` para auditoria estática antes do deploy;
+- matriz de conformidade do planejamento e documentação operacional do playground.
+
+### Segurança
+
+- simulador recusado fora de `PLAYGROUND_MODE=true`;
+- playground bloqueado em `APP_ENV=production` sem autorização explícita;
+- portas do playground vinculadas a `127.0.0.1` por padrão;
+- instalação Docker no CloudPanel valida o stack local antes de exigir a aplicação do proxy HTTPS;
+- playground publicado por domínio desativa `APP_DEBUG` automaticamente;
+- exemplos de produção mantêm todos os recursos de playground desabilitados;
+- exemplos Docker de produção usam URL HTTPS e cookie de sessão seguro por padrão;
+- backfill legado de RBAC promove somente administradores de tenant, sem elevar operadores ou técnicos;
+- instalador CloudPanel valida a extensão PDO específica do banco e a extensão Redis quando ativada;
+- senhas e segredos de playground são gerados localmente e o `.env` recebe modo `600`.
+
+### Compatibilidade
+
+- nenhuma migration nova e nenhuma tabela removida;
+- arquitetura Laravel/Blade, MySQL, PostgreSQL, Docker, CloudPanel, FreeRADIUS, SSH Key, vouchers e Asaas preservados;
+- atualização incremental a partir da versão 1.3.5.
+
 ## 1.3.5 — 2026-07-19
 
 ### Corrigido

@@ -36,6 +36,11 @@ ensure_secrets
 
 set_env COMPOSE_PROFILES "$DB_ENGINE"
 set_env DEPLOYMENT_MODE docker
+if [[ "$ENV_FILE" == "$PROJECT_ROOT/"* ]]; then
+  set_env RADIUSHUB_ENV_FILE "${ENV_FILE#"$PROJECT_ROOT/"}"
+else
+  set_env RADIUSHUB_ENV_FILE "$ENV_FILE"
+fi
 if [[ "$DB_ENGINE" == mysql ]]; then
   set_env DB_CONNECTION mysql
   set_env DB_HOST mysql
@@ -51,7 +56,7 @@ fi
 password="$(read_env DB_PASSWORD)"
 [[ -n "$password" && "$password" != change-this* ]] || set_env DB_PASSWORD "$(random_hex 24)"
 
-if [[ -t 0 ]]; then
+if [[ -t 0 && "${NON_INTERACTIVE:-false}" != true ]]; then
   current_url="$(read_env APP_URL http://localhost:8080)"
   read -r -p "URL pública da aplicação [$current_url]: " answer
   [[ -n "$answer" ]] && set_env APP_URL "$answer"
@@ -61,11 +66,16 @@ if [[ -t 0 ]]; then
 fi
 
 app_url="$(read_env APP_URL)"
-if [[ "$app_url" == https://* ]]; then set_env SESSION_SECURE_COOKIE true; fi
+if [[ "$app_url" == https://* ]]; then
+  set_env SESSION_SECURE_COOKIE true
+else
+  set_env SESSION_SECURE_COOKIE false
+fi
 validate_no_placeholders
 chmod 600 "$ENV_FILE"
 
-compose=(docker compose --profile "$DB_ENGINE")
+compose=(docker compose --env-file "$ENV_FILE" --profile "$DB_ENGINE")
+"${compose[@]}" config --quiet
 if [[ "$USE_IMAGES" == true ]]; then
   log "Baixando imagens publicadas no GHCR..."
   "${compose[@]}" pull app web worker scheduler freeradius redis "$DB_ENGINE"
@@ -85,6 +95,20 @@ log "Executando migrations e seed inicial..."
 
 log "Iniciando todos os serviços..."
 "${compose[@]}" up -d --remove-orphans
+
+log "Aguardando readiness HTTP..."
+ready_url="http://127.0.0.1:$(read_env APP_PORT 8080)/health/ready"
+for attempt in $(seq 1 90); do
+  if curl -fsS "$ready_url" >/dev/null 2>&1; then break; fi
+  if [[ "$attempt" -eq 90 ]]; then
+    "${compose[@]}" ps
+    "${compose[@]}" logs --tail=200 app web worker scheduler freeradius
+    die "A aplicação não ficou pronta em até 180 segundos."
+  fi
+  sleep 2
+done
+"${compose[@]}" exec -T app php artisan radiushub:health --ready
+"${compose[@]}" exec -T app php artisan radiushub:doctor || true
 
 cat <<INFO
 

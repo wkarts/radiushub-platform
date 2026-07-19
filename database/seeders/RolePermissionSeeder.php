@@ -100,6 +100,12 @@ class RolePermissionSeeder extends Seeder
                 if (! $company) continue;
 
                 foreach ($tenant->users as $user) {
+                    // Backfill legado somente para administradores do tenant. Vincular
+                    // todos os membros como company_admin violaria o isolamento RBAC.
+                    if (($user->pivot?->role ?? null) !== 'tenant_admin') {
+                        continue;
+                    }
+
                     DB::table('company_user')->updateOrInsert(
                         ['company_id' => $company->id, 'user_id' => $user->id],
                         [

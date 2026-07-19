@@ -119,6 +119,12 @@
                 <form action="{{ route('logout') }}" method="post">@csrf<button class="btn btn-ghost btn-sm" type="submit">Sair</button></form>
             </div>
         </header>
+        @if(config('playground.enabled') && config('playground.banner'))
+            <div class="playground-banner" role="status">
+                <strong>Modo Playground</strong>
+                <span>Dados demonstrativos e MikroTik simulado. Nenhum comando é enviado a equipamentos externos.</span>
+            </div>
+        @endif
         <div class="content"><x-flash />@yield('content')</div>
     </main>
 </div>

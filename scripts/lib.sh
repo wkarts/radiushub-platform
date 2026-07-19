@@ -64,11 +64,17 @@ backup_env() {
 }
 
 validate_no_placeholders() {
-  local keys=(APP_KEY DB_DATABASE DB_USERNAME DB_PASSWORD RADIUS_CREDENTIAL_KEY RADIUS_LOCAL_SECRET SEED_ADMIN_EMAIL SEED_ADMIN_PASSWORD)
+  local keys=(APP_KEY APP_URL DB_DATABASE DB_USERNAME DB_PASSWORD RADIUS_CREDENTIAL_KEY RADIUS_LOCAL_SECRET SEED_ADMIN_EMAIL SEED_ADMIN_PASSWORD)
   local key value
   for key in "${keys[@]}"; do
     value="$(read_env "$key")"
     [[ -n "$value" ]] || die "Variável obrigatória vazia: $key"
     [[ "$value" != change-this* ]] || die "Substitua o valor provisório de $key no arquivo .env."
   done
+
+  local app_url
+  app_url="$(read_env APP_URL)"
+  if [[ "$app_url" == *"example.com"* ]]; then
+    die "Substitua APP_URL pelo domínio ou endereço real da instalação."
+  fi
 }

@@ -23,7 +23,7 @@ fi
 backup_env
 ensure_runtime_dirs
 ensure_secrets
-set_env DEPLOYMENT_MODE native
+set_env DEPLOYMENT_MODE "$(read_env DEPLOYMENT_MODE native)"
 set_env CACHE_STORE "$(read_env CACHE_STORE database)"
 set_env CACHE_LIMITER "$(read_env CACHE_LIMITER database)"
 set_env QUEUE_CONNECTION "$(read_env QUEUE_CONNECTION database)"
@@ -45,8 +45,24 @@ if [[ -t 0 ]]; then
   read -r -s -p "Senha inicial do superadministrador (Enter mantém/gera): " answer; echo; [[ -n "$answer" ]] && set_env SEED_ADMIN_PASSWORD "$answer"
 fi
 
+driver="$(read_env DB_CONNECTION)"
+case "$driver" in
+  mysql) db_extension=pdo_mysql ;;
+  pgsql) db_extension=pdo_pgsql ;;
+  *) die "DB_CONNECTION deve ser mysql ou pgsql para a instalação nativa." ;;
+esac
+"$PHP_BIN" -m | grep -qi "^${db_extension}$" || die "Extensão PHP ausente para o banco selecionado: $db_extension"
+
+if [[ "$(read_env CACHE_STORE database)" == "redis" || "$(read_env QUEUE_CONNECTION database)" == "redis" ]]; then
+  "$PHP_BIN" -m | grep -qi '^redis$' || die "A extensão PHP redis é obrigatória quando cache ou filas usam Redis."
+fi
+
 app_url="$(read_env APP_URL)"
-if [[ "$app_url" == https://* ]]; then set_env SESSION_SECURE_COOKIE true; fi
+if [[ "$app_url" == https://* ]]; then
+  set_env SESSION_SECURE_COOKIE true
+else
+  set_env SESSION_SECURE_COOKIE false
+fi
 validate_no_placeholders
 chmod 600 "$ENV_FILE"
 
@@ -62,6 +78,7 @@ rm -f bootstrap/cache/config.php bootstrap/cache/events.php bootstrap/cache/rout
 "$PHP_BIN" artisan storage:link --force || true
 "$PHP_BIN" artisan config:cache
 "$PHP_BIN" artisan view:cache
+"$PHP_BIN" artisan radiushub:health --ready
 "$PHP_BIN" artisan radiushub:doctor || true
 
 site_user="$(id -un)"
@@ -80,6 +97,12 @@ sed \
   -e "s|__PROJECT_ROOT__|$PROJECT_ROOT|g" \
   -e "s|__PHP_BIN__|$(command -v "$PHP_BIN")|g" \
   deploy/cloudpanel/cron.txt > storage/app/deploy/cron.txt
+sed \
+  -e "s|__PROJECT_ROOT__|$PROJECT_ROOT|g" \
+  deploy/cloudpanel/nginx-vhost.conf > storage/app/deploy/nginx-native.conf
+sed \
+  -e "s|__APP_PORT__|$(read_env APP_PORT 8080)|g" \
+  deploy/cloudpanel/nginx-docker-reverse-proxy.conf > storage/app/deploy/nginx-docker-reverse-proxy.conf
 
 cat <<INFO
 
@@ -95,4 +118,14 @@ Próximos comandos administrativos:
 
 Configure no CloudPanel o document root para:
   $PROJECT_ROOT/public
+
+Snippets gerados:
+  storage/app/deploy/nginx-native.conf
+  storage/app/deploy/nginx-docker-reverse-proxy.conf
+  storage/app/deploy/supervisor-radiushub.conf
+  storage/app/deploy/cron.txt
+
+Validação pública:
+  $(read_env APP_URL)/health/live
+  $(read_env APP_URL)/health/ready
 INFO

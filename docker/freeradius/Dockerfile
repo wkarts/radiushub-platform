@@ -2,7 +2,7 @@ FROM freeradius/freeradius-server:3.2.10
 ARG DEBIAN_FRONTEND=noninteractive
 ARG VCS_REF=""
 ARG BUILD_DATE=""
-ARG VERSION="1.3.5"
+ARG VERSION="1.4.0"
 LABEL org.opencontainers.image.title="RadiusHub FreeRADIUS" \
       org.opencontainers.image.version="$VERSION" \
       org.opencontainers.image.revision="$VCS_REF" \
@@ -10,7 +10,7 @@ LABEL org.opencontainers.image.title="RadiusHub FreeRADIUS" \
       org.opencontainers.image.source="https://github.com/wkarts/radiushub-platform"
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    freeradius-postgresql freeradius-mysql postgresql-client default-mysql-client ca-certificates \
+    freeradius-postgresql freeradius-mysql freeradius-utils postgresql-client default-mysql-client procps ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 COPY docker/freeradius/entrypoint.sh /usr/local/bin/radiushub-radius-entrypoint
 COPY resources/freeradius /opt/radiushub-radius/templates

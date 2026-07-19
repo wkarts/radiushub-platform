@@ -14,7 +14,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name', 'login', 'email', 'password', 'is_super_admin', 'active',
-        'must_change_password', 'two_factor_secret', 'two_factor_recovery_codes',
+        'must_change_password', 'email_verified_at', 'two_factor_secret', 'two_factor_recovery_codes',
         'two_factor_confirmed_at', 'last_login_at', 'last_login_ip',
     ];
 

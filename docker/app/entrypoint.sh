@@ -59,6 +59,10 @@ if [ "${AUTO_SEED:-false}" = "true" ]; then
   as_www_data php artisan db:seed --force
 fi
 
+if [ "${PLAYGROUND_MODE:-false}" = "true" ] && [ "${AUTO_SEED:-false}" = "true" ]; then
+  as_www_data php artisan radiushub:playground:verify --json
+fi
+
 as_www_data php artisan storage:link --force >/dev/null 2>&1 || true
 as_www_data php artisan config:cache
 as_www_data php artisan view:cache

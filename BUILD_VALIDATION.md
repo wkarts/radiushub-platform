@@ -1,63 +1,52 @@
-# Validação da entrega 1.3.5
+# Validação da entrega 1.4.0
 
-## Log analisado
+## Escopo analisado
 
-Workflow GitHub Actions `80422437293`.
+A versão 1.4.0 foi construída sobre a 1.3.5, preservando Laravel/Blade, multi-tenancy, RBAC, FreeRADIUS, MikroTik SSH Key, vouchers, financeiro, Asaas, Docker, CloudPanel e automação de release.
 
-Resultados:
+## Validação executada no ambiente de geração
 
-- preparação da versão concluída;
-- tag `v1.3.4` criada e resolvida para o commit aprovado;
-- ZIP, TAR.GZ, `SHA256SUMS` e `RELEASE-METADATA.json` gerados;
-- download do artefato concluído e digest SHA-256 correspondente;
-- checksums do ZIP e TAR.GZ aprovados;
-- imagens `radiushub-app`, `radiushub-web` e `radiushub-freeradius` publicadas;
-- falha restrita ao comando `gh release create` no job final.
+- lint de **339 arquivos PHP** com `php -l`;
+- lint de **27 scripts Bash** com `bash -n`/`sh -n`;
+- parsing de **3 arquivos JSON** e **11 arquivos YAML**;
+- verificação de versão por `scripts/check-version-integrity.php`;
+- verificação de sequências de migrations por `scripts/check-migration-integrity.php`;
+- inspeção de rotas, controllers, requests, policies, middleware, services e views;
+- verificação estática dos serviços e dependências do Docker Compose;
+- verificação dos exemplos `.env` de produção e playground;
+- verificação de cookies seguros nos exemplos de produção;
+- teste de regressão para impedir promoção indevida de membros no backfill RBAC;
+- contrato de conformidade para componentes, rotas, sidebar e smoke tests;
+- execução positiva de `scripts/check-planning-compliance.php`;
+- verificação do instalador Docker + reverse proxy CloudPanel e do adiamento seguro do login HTTPS até o proxy ser aplicado;
+- verificação do bloqueio do simulador fora do playground;
+- geração de árvore com **536 arquivos**, manifesto SHA-256, patch incremental e teste de integridade do ZIP.
 
-## Causa-raiz
+## Validação configurada no GitHub Actions
 
-Cada job do GitHub Actions executa em runner independente. O job `publish` baixava os artefatos, mas não executava `actions/checkout`. O GitHub CLI tentou descobrir o repositório por meio de `.git` e encerrou com:
+O workflow executa, depois do push:
 
-```text
-failed to run git: fatal: not a git repository
-```
+- Composer/PHPUnit em PHP 8.3 e 8.4;
+- migrations, seed, Doctor e renderização FreeRADIUS no PostgreSQL 17;
+- migrations, seed, Doctor e renderização FreeRADIUS no MySQL 8.4;
+- build das imagens app, web e FreeRADIUS;
+- playground Docker completo;
+- liveness/readiness;
+- login autenticado;
+- simulador MikroTik;
+- autenticação FreeRADIUS com `Access-Accept`;
+- accounting com `Accounting-Response` e confirmação no banco;
+- instalação nativa equivalente ao fluxo CloudPanel e geração de Nginx/Supervisor/Cron.
 
-A linha `digest-mismatch: error` exibida no download não era falha; era a política configurada para interromper somente se o digest divergisse. O digest calculado correspondeu ao esperado.
+## Não executado localmente
 
-## Correção
+Este ambiente não possui Composer, Docker Engine, MySQL ou PostgreSQL. Portanto, os testes dinâmicos acima não foram simulados como se tivessem sido executados localmente; eles permanecem configurados para execução real no CI.
 
-- checkout explícito no job `publish`;
-- `GH_REPO` definido no workflow;
-- `--repo` em `gh release view`, `create` e `upload`;
-- verificação do commit local;
-- verificação de que a tag aponta para o commit esperado;
-- validação dos quatro arquivos antes da publicação;
-- retentativa limitada para falhas transitórias;
-- validação posterior da URL e dos quatro assets publicados;
-- suporte à recuperação da tag `v1.3.4` sem release.
+## Homologação externa ainda necessária
 
-## Validações locais executadas
-
-- sintaxe PHP;
-- sintaxe Bash;
-- parsing JSON e YAML;
-- integridade de versão;
-- integridade das migrations;
-- simulação do inventário de artefatos;
-- manifesto SHA-256;
-- integridade do ZIP.
-
-A publicação real da release será executada no GitHub Actions após o merge.
-
-## Simulação do job final
-
-Os três scripts do job `publish` foram extraídos do YAML e executados em um repositório Git temporário com:
-
-- commit e tag anotada reais;
-- remote Git local;
-- quatro artefatos e checksums;
-- GitHub CLI simulado;
-- criação da release;
-- verificação de URL, nomes e tamanhos dos quatro assets.
-
-Resultado: `SIM_RELEASE_OK`.
+- SSH Key e fingerprint em MikroTik RouterOS real;
+- Hotspot/PPPoE em rede real;
+- conta e webhook Asaas Sandbox;
+- SMTP real;
+- firewall e acesso RADIUS dos NAS;
+- revisão visual nos dispositivos físicos da operação.

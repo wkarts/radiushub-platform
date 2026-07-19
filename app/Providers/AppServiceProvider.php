@@ -22,6 +22,12 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        if (config('playground.enabled') && $this->app->environment('production') && ! config('playground.allow_production')) {
+            throw new \RuntimeException(
+                'PLAYGROUND_MODE não pode ser habilitado em APP_ENV=production sem PLAYGROUND_ALLOW_PRODUCTION=true.'
+            );
+        }
+
         Paginator::useBootstrapFive();
 
         Gate::before(fn ($user): ?bool => $user->is_super_admin ? true : null);

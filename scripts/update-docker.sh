@@ -5,7 +5,8 @@ cd "$PROJECT_ROOT"
 [[ -f "$ENV_FILE" ]] || die ".env não encontrado."
 DB_ENGINE="$(read_env COMPOSE_PROFILES)"
 [[ "$DB_ENGINE" == mysql || "$DB_ENGINE" == postgres ]] || DB_ENGINE="$([[ "$(read_env DB_CONNECTION)" == mysql ]] && echo mysql || echo postgres)"
-compose=(docker compose --profile "$DB_ENGINE")
+compose=(docker compose --env-file "$ENV_FILE" --profile "$DB_ENGINE")
+"${compose[@]}" config --quiet
 
 "$PROJECT_ROOT/scripts/backup.sh" --docker
 if [[ "${1:-}" == "--build" ]]; then
@@ -22,5 +23,16 @@ fi
 "${compose[@]}" run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php artisan asaas:webhooks:sync || warn "Sincronização remota dos webhooks Asaas pendente."
 "${compose[@]}" run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php artisan optimize:clear
 "${compose[@]}" up -d --remove-orphans
+ready_url="http://127.0.0.1:$(read_env APP_PORT 8080)/health/ready"
+for attempt in $(seq 1 90); do
+  if curl -fsS "$ready_url" >/dev/null 2>&1; then break; fi
+  if [[ "$attempt" -eq 90 ]]; then
+    "${compose[@]}" ps
+    "${compose[@]}" logs --tail=200 app web worker scheduler freeradius
+    die "A aplicação não ficou pronta após a atualização."
+  fi
+  sleep 2
+done
+"${compose[@]}" exec -T app php artisan radiushub:health --ready
 "${compose[@]}" exec -T app php artisan radiushub:doctor || true
 log "Atualização Docker concluída."

@@ -1,16 +1,24 @@
 # Implantação Docker
 
-## Perfis disponíveis
+## Serviços
 
-- `postgres`: PostgreSQL 17;
-- `mysql`: MySQL 8.4.
+O Compose inclui:
 
-Serviços: `app`, `web`, `worker`, `scheduler`, `freeradius`, `redis` e banco escolhido.
+- `app`: Laravel/PHP-FPM;
+- `web`: Nginx;
+- `worker`: filas `network`, `webhooks` e `default`;
+- `scheduler`: `schedule:work`;
+- `freeradius`: AAA e accounting;
+- `redis`;
+- `postgres` ou `mysql` por profile.
+
+Worker, Scheduler, Nginx e FreeRADIUS aguardam a aplicação ficar saudável. O container `app` aguarda o banco, executa migrations/seed quando habilitado e só então passa no readiness.
 
 ## PostgreSQL
 
 ```bash
 cp .env.docker.postgres.example .env
+nano .env
 ./scripts/install-docker.sh --postgres
 ```
 
@@ -18,8 +26,28 @@ cp .env.docker.postgres.example .env
 
 ```bash
 cp .env.docker.mysql.example .env
+nano .env
 ./scripts/install-docker.sh --mysql
 ```
+
+## Imagens publicadas
+
+```env
+RADIUSHUB_REGISTRY=ghcr.io/wkarts
+RADIUSHUB_TAG=1.4.0
+RADIUSHUB_ENV_FILE=.env
+```
+
+```bash
+./scripts/install-docker.sh --postgres --pull-images
+```
+
+Sem `--pull-images`, as imagens são compiladas localmente.
+
+
+## HTTPS e cookies
+
+Os exemplos de produção partem de `APP_URL=https://radius.example.com` e `SESSION_SECURE_COOKIE=true`. Substitua o domínio antes da instalação. Para um teste HTTP local descartável, use o playground, que configura o cookie seguro como `false` e vincula as portas a `127.0.0.1`.
 
 ## Reverse proxy CloudPanel
 
@@ -30,40 +58,44 @@ APP_BIND_ADDRESS=127.0.0.1
 APP_PORT=8080
 ```
 
-Use `deploy/cloudpanel/nginx-docker-reverse-proxy.conf` no site Reverse Proxy e ative SSL no CloudPanel.
+Use `deploy/cloudpanel/nginx-docker-reverse-proxy.conf` e configure SSL no CloudPanel.
 
 ## Portas
 
 - TCP 8080: web local;
-- UDP 1812: RADIUS auth;
+- UDP 1812: autenticação RADIUS;
 - UDP 1813: accounting;
-- TCP SSH: saída da aplicação até os MikroTiks para sincronização, desconexão e limites;
-- UDP 3799: opcional, somente quando `MIKROTIK_ALLOW_COA_FALLBACK=true`;
-- TCP 22 ou porta customizada: SSH no MikroTik, saída da aplicação.
+- TCP SSH: saída da aplicação até os MikroTiks;
+- UDP 3799: opcional, somente quando o fallback CoA estiver habilitado.
 
-Não exponha PostgreSQL/MySQL/Redis. Restrinja 1812/1813 no firewall aos IPs dos MikroTiks ou à VPN.
+Não publique PostgreSQL, MySQL ou Redis. Restrinja 1812/1813 aos IPs dos MikroTiks ou à VPN.
 
-## Imagens GHCR
-
-```env
-RADIUSHUB_REGISTRY=ghcr.io/wkarts
-RADIUSHUB_TAG=1.3.5
-```
+## Saúde e diagnóstico
 
 ```bash
-./scripts/install-docker.sh --postgres --pull-images
+docker compose --profile postgres ps
+curl -fsS http://127.0.0.1:8080/health/live
+curl -fsS http://127.0.0.1:8080/health/ready
+docker compose --profile postgres exec -T app php artisan radiushub:doctor
 ```
 
-Se as imagens não estiverem publicadas, omita `--pull-images` para build local.
+## Playground funcional
+
+```bash
+./scripts/playground.sh up
+# ou
+./scripts/playground.sh up --pull-images
+```
+
+Consulte `docs/PLAYGROUND.md`. O playground executa smoke de login, RADIUS e accounting.
 
 ## Operação
 
 ```bash
-docker compose --profile postgres ps
 docker compose --profile postgres logs -f app worker scheduler freeradius
 ./scripts/doctor.sh
 ./scripts/backup.sh --docker
 ./scripts/update-docker.sh
 ```
 
-No MySQL, substitua `postgres` por `mysql`.
+No MySQL, substitua o profile `postgres` por `mysql`.
