@@ -26,7 +26,7 @@ RUN composer dump-autoload --no-dev --classmap-authoritative --no-interaction
 FROM php-base AS runtime
 ARG VCS_REF=""
 ARG BUILD_DATE=""
-ARG VERSION="1.3.0"
+ARG VERSION="1.3.1"
 LABEL org.opencontainers.image.title="RadiusHub Platform" \
       org.opencontainers.image.description="Laravel multi-tenant para MikroTik por SSH Key, FreeRADIUS e cobrança Asaas" \
       org.opencontainers.image.version="$VERSION" \

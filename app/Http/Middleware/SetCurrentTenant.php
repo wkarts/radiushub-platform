@@ -25,12 +25,12 @@ class SetCurrentTenant
 
         $tenants = $user->is_super_admin
             ? Tenant::query()->where('active', true)
-            : $user->tenants()->where('active', true);
+            : $user->tenants()->where('tenants.active', true);
 
         $tenant = $requestedId ? (clone $tenants)->whereKey($requestedId)->first() : null;
         $tenant ??= $tenants->first();
 
-        abort_unless($tenant, 403, 'O usuário não possui empresa ativa vinculada.');
+        abort_unless($tenant, 403, 'O usuário não possui tenant ativo vinculado.');
 
         $request->session()->put(config('tenancy.session_key'), $tenant->getKey());
         $this->context->set($tenant);
@@ -38,7 +38,7 @@ class SetCurrentTenant
         View::share('currentTenant', $tenant);
         View::share('availableTenants', $user->is_super_admin
             ? Tenant::query()->where('active', true)->orderBy('name')->get()
-            : $user->tenants()->where('active', true)->orderBy('name')->get());
+            : $user->tenants()->where('tenants.active', true)->orderBy('name')->get());
 
         try {
             return $next($request);

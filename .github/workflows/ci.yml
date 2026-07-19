@@ -22,6 +22,8 @@ jobs:
         php: ['8.3', '8.4']
     steps:
       - uses: actions/checkout@v4
+      - name: Preparar diretórios graváveis do Laravel
+        run: mkdir -p bootstrap/cache storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
@@ -70,6 +72,8 @@ jobs:
           --health-interval=5s --health-timeout=5s --health-retries=30
     steps:
       - uses: actions/checkout@v4
+      - name: Preparar diretórios graváveis do Laravel
+        run: mkdir -p bootstrap/cache storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
@@ -114,6 +118,8 @@ jobs:
           --health-interval=5s --health-timeout=5s --health-retries=30
     steps:
       - uses: actions/checkout@v4
+      - name: Preparar diretórios graváveis do Laravel
+        run: mkdir -p bootstrap/cache storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'

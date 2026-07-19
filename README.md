@@ -1,4 +1,4 @@
-# RadiusHub Platform 1.3.0
+# RadiusHub Platform 1.3.1
 
 Plataforma web multi-tenant em PHP/Laravel para administrar empresas, clientes, planos, Hotspot, PPPoE, vouchers, FreeRADIUS, equipamentos MikroTik por **SSH Key**, financeiro e integração Asaas.
 
@@ -65,7 +65,7 @@ sudo ./scripts/install-freeradius-native.sh
 
 Configure o document root do site para `public/`, instale o arquivo de Supervisor gerado em `storage/app/deploy/` e adicione o Cron gerado no mesmo diretório.
 
-## Atualização 1.2.x para 1.3.0
+## Atualização 1.2.x para 1.3.1
 
 ```bash
 chmod +x scripts/upgrade-1.2-to-1.3.sh
@@ -73,6 +73,15 @@ chmod +x scripts/upgrade-1.2-to-1.3.sh
 ```
 
 O script preserva `.env`, `APP_KEY`, credenciais criptografadas e banco atual, realiza backup, instala dependências, executa migrations e reinicia workers.
+
+## Atualização 1.3.0 para 1.3.1
+
+```bash
+chmod +x scripts/upgrade-1.3.0-to-1.3.1.sh
+./scripts/upgrade-1.3.0-to-1.3.1.sh
+```
+
+A atualização é corretiva e preserva as integrações MikroTik SSH Key, FreeRADIUS e Asaas.
 
 ## Documentação
 
@@ -89,6 +98,7 @@ O script preserva `.env`, `APP_KEY`, credenciais criptografadas e banco atual, r
 - [Asaas SDK ARGWS](docs/ASAAS_SDK_ARGWS.md)
 - [GitHub, GHCR e releases](docs/GITHUB.md)
 - [Upgrade 1.2 → 1.3](docs/UPGRADE_1.2_TO_1.3.md)
+- [Upgrade 1.3.0 → 1.3.1](docs/UPGRADE_1.3.0_TO_1.3.1.md)
 
 ## Diagnóstico
 

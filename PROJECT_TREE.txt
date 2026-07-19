@@ -13,6 +13,8 @@
 BUILD_VALIDATION.md
 CHANGELOG.md
 LICENSE.md
+MANIFEST.sha256
+PROJECT_TREE.txt
 README.md
 SECURITY.md
 THIRD_PARTY_NOTICES.md
@@ -247,6 +249,7 @@ docs/ARCHITECTURE.md
 docs/ASAAS_SDK_ARGWS.md
 docs/ASAAS_WEBHOOKS_MULTIEMPRESA.md
 docs/BILLING.md
+docs/CI_FIX_1.3.1.md
 docs/CRUD_UI.md
 docs/DEPLOY_CLOUDPANEL.md
 docs/DEPLOY_DOCKER.md
@@ -261,6 +264,7 @@ docs/TENANCY_RBAC.md
 docs/UPGRADE_1.0_TO_1.1.md
 docs/UPGRADE_1.1_TO_1.2.md
 docs/UPGRADE_1.2_TO_1.3.md
+docs/UPGRADE_1.3.0_TO_1.3.1.md
 docs/VOUCHERS.md
 packages
 packages/asaas-sdk-argws
@@ -572,6 +576,7 @@ scripts/update-docker.sh
 scripts/update.sh
 scripts/upgrade-1.1-to-1.2.sh
 scripts/upgrade-1.2-to-1.3.sh
+scripts/upgrade-1.3.0-to-1.3.1.sh
 scripts/validate-asaas-sdk.php
 storage
 storage/app
@@ -582,10 +587,15 @@ storage/app/public/.gitignore
 storage/framework
 storage/framework/cache
 storage/framework/cache/.gitignore
+storage/framework/cache/data
+storage/framework/cache/data/.gitignore
+storage/framework/cache/data/README.md
 storage/framework/sessions
 storage/framework/sessions/.gitignore
+storage/framework/sessions/README.md
 storage/framework/views
 storage/framework/views/.gitignore
+storage/framework/views/README.md
 storage/logs
 storage/logs/.gitignore
 tests

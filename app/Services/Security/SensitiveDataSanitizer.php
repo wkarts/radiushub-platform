@@ -6,13 +6,25 @@ final class SensitiveDataSanitizer
 {
     public function sanitize(string $value): string
     {
-        $patterns = [
-            '/(?i)(password|passwd|passphrase|private-key|secret|token)\s*[=:]\s*("[^"]*"|[^\s;]+)/',
-            '/-----BEGIN [^-]+ PRIVATE KEY-----.*?-----END [^-]+ PRIVATE KEY-----/s',
-            '/(?i)(Authorization:\s*Bearer\s+)[^\s]+/',
-        ];
+        $sanitized = preg_replace(
+            '/-----BEGIN(?: [A-Z0-9]+)* PRIVATE KEY-----.*?-----END(?: [A-Z0-9]+)* PRIVATE KEY-----/is',
+            '[PRIVATE KEY REDACTED]',
+            $value,
+        ) ?? '[REDACTED]';
 
-        return preg_replace($patterns, '$1=[REDACTED]', $value) ?? '[REDACTED]';
+        $sanitized = preg_replace(
+            '/(?i)(password|passwd|passphrase|private-key|private_key|secret|token|api[-_]?key)\s*[=:]\s*("[^"]*"|\'[^\']*\'|[^\s;]+)/',
+            '$1=[REDACTED]',
+            $sanitized,
+        ) ?? '[REDACTED]';
+
+        $sanitized = preg_replace(
+            '/(?i)(Authorization:\s*Bearer\s+)[^\s]+/',
+            '$1[REDACTED]',
+            $sanitized,
+        ) ?? '[REDACTED]';
+
+        return $sanitized;
     }
 
     public function excerpt(string $value, int $limit = 4000): string
