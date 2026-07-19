@@ -2,7 +2,7 @@ FROM freeradius/freeradius-server:3.2.10
 ARG DEBIAN_FRONTEND=noninteractive
 ARG VCS_REF=""
 ARG BUILD_DATE=""
-ARG VERSION="1.3.3"
+ARG VERSION="1.3.4"
 LABEL org.opencontainers.image.title="RadiusHub FreeRADIUS" \
       org.opencontainers.image.version="$VERSION" \
       org.opencontainers.image.revision="$VCS_REF" \

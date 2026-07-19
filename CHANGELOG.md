@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.3.4 — 2026-07-19
+
+### Corrigido
+
+- release deixa de depender exclusivamente de tag manual;
+- merge na `main` gera a release automaticamente somente depois do CI aprovado;
+- workflow cria de forma idempotente a tag correspondente ao arquivo `VERSION`;
+- releases existentes não são duplicadas;
+- tags existentes sem release são recuperadas automaticamente;
+- artefatos ZIP e TAR.GZ passam a ser gerados diretamente do commit versionado;
+- checksums SHA-256 e metadados da release são anexados;
+- imagens GHCR recebem tags `X.Y.Z`, `X.Y`, `latest` e `sha-*`;
+- validação de consistência impede publicar versão divergente entre código, Docker e exemplos de ambiente;
+- execução manual permite reconstruir artefatos de uma release existente.
+
+### Compatibilidade
+
+- nenhuma funcionalidade de aplicação ou banco foi removida;
+- CI, Docker, CloudPanel, FreeRADIUS, MikroTik, vouchers e Asaas permanecem preservados.
+
 ## 1.3.3 — 2026-07-19
 
 ### Corrigido

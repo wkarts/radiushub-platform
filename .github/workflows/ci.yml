@@ -37,6 +37,7 @@ jobs:
       - run: composer validate --strict --no-check-lock
       - run: composer install --no-interaction --prefer-dist
       - run: composer migrations:check
+      - run: composer version:check
       - name: Preparar ambiente de testes
         run: cp .env.example .env.testing
       - run: composer lint
@@ -85,6 +86,7 @@ jobs:
           tools: composer:v2
       - run: composer install --no-interaction --prefer-dist
       - run: composer migrations:check
+      - run: composer version:check
       - run: cp .env.docker.postgres.example .env
       - run: php artisan migrate --force
       - run: php artisan db:seed --force
@@ -132,6 +134,7 @@ jobs:
           tools: composer:v2
       - run: composer install --no-interaction --prefer-dist
       - run: composer migrations:check
+      - run: composer version:check
       - run: cp .env.docker.mysql.example .env
       - run: php artisan migrate --force
       - run: php artisan db:seed --force
