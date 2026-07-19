@@ -30,6 +30,7 @@ trap '"$PHP_BIN" artisan up >/dev/null 2>&1 || true' EXIT
 "$COMPOSER_BIN" install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 rm -f bootstrap/cache/config.php bootstrap/cache/events.php bootstrap/cache/routes-*.php
 "$PHP_BIN" artisan optimize:clear
+"$PHP_BIN" scripts/check-migration-integrity.php
 "$PHP_BIN" artisan migrate --force
 "$PHP_BIN" artisan db:seed --force
 "$PHP_BIN" artisan asaas:webhooks:sync || warn "Alguns webhooks Asaas não puderam ser sincronizados automaticamente; execute php artisan asaas:webhooks:sync após validar as credenciais e a conectividade."

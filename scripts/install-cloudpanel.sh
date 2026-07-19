@@ -56,6 +56,7 @@ log "Instalando dependências Composer..."
 log "Limpando caches e validando conexão..."
 rm -f bootstrap/cache/config.php bootstrap/cache/events.php bootstrap/cache/routes-*.php
 "$PHP_BIN" artisan optimize:clear
+"$PHP_BIN" scripts/check-migration-integrity.php
 "$PHP_BIN" artisan migrate --force
 "$PHP_BIN" artisan db:seed --force
 "$PHP_BIN" artisan storage:link --force || true

@@ -14,6 +14,7 @@ cp -a database/migrations "$backup/migrations" 2>/dev/null || true
 rm -f bootstrap/cache/config.php bootstrap/cache/events.php bootstrap/cache/routes-*.php
 php artisan optimize:clear || true
 composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
+php scripts/check-migration-integrity.php
 php artisan migrate --force
 php artisan db:seed --force
 php artisan optimize:clear

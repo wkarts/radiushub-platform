@@ -17,6 +17,7 @@ else
   }
 fi
 "${compose[@]}" up -d "$DB_ENGINE" redis
+"${compose[@]}" run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php scripts/check-migration-integrity.php
 "${compose[@]}" run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php artisan migrate --force
 "${compose[@]}" run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php artisan asaas:webhooks:sync || warn "Sincronização remota dos webhooks Asaas pendente."
 "${compose[@]}" run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php artisan optimize:clear
