@@ -1,54 +1,54 @@
-# Pull Request — RadiusHub Platform 1.3.1
+# Pull Request — RadiusHub Platform 1.3.2
 
 ## Branch
 
-`fix/v1.3.1-ci-mysql-tests`
+`fix/v1.3.2-definitive-ci-validation`
 
 ## Título
 
-`fix(ci): corrigir migrations MySQL, cache Blade e testes de segurança`
+`fix(ci): estabilizar autorização, migrations MySQL e validações do RadiusHub`
 
-## Commit principal
+## Commit
 
-`fix(platform): estabilizar CI no MySQL e corrigir testes multiempresa`
+`fix(platform): corrigir controller base e migrations retomáveis no MySQL`
 
 ## Mensagem de merge
 
-`fix: publicar RadiusHub Platform v1.3.1 com CI estável em PHP, MySQL, PostgreSQL e Docker`
+`fix: publicar RadiusHub Platform v1.3.2 com validações estáveis`
 
-## Objetivo
+## Descrição
 
-Corrigir as falhas identificadas no workflow de CI da versão 1.3.0 sem remover funcionalidades ou alterar abruptamente a arquitetura Laravel/Blade, FreeRADIUS, MikroTik SSH Key, vouchers e Asaas.
+### Objetivo
 
-## Causas corrigidas
+Resolver as falhas remanescentes do workflow GitHub Actions `80361125869`, preservando integralmente a arquitetura Laravel/Blade, MikroTik SSH Key, vouchers, FreeRADIUS, multiempresa e integração Asaas.
 
-- remoção de índice MySQL ainda utilizado por chave estrangeira;
-- ausência do diretório de cache das views Blade após checkout;
-- sanitizador sem suporte ao formato genérico `BEGIN PRIVATE KEY`;
-- consulta ambígua do campo `active` na relação usuário → tenants;
-- falhas derivadas nos testes de login, criação de empresa e isolamento multiempresa.
+### Causas-raiz corrigidas
 
-## Solução
+- `CompanyController::authorize()` inexistente porque o controller base não herdava o controller de roteamento do Laravel nem utilizava `AuthorizesRequests`;
+- migration do webhook removia no MySQL um índice ainda utilizado pela foreign key de `tenant_id`;
+- migrations DDL não podiam ser retomadas com segurança após falha parcial no MySQL;
+- warnings de teste eram truncados e o ambiente de teste não possuía `.env.testing` explícito;
+- workflows ainda utilizavam ações baseadas no runtime Node anterior.
 
-- cria os índices multiempresa antes de remover os índices antigos;
-- restaura índices na ordem segura durante rollback;
-- prepara diretórios graváveis no CI e no bootstrap dos testes;
-- mantém placeholders versionáveis nos diretórios de runtime;
-- amplia a sanitização de chaves e credenciais;
-- qualifica `tenants.active` nas relações many-to-many;
-- limpa a empresa selecionada ao trocar de tenant.
+### Alterações
 
-## Compatibilidade
+- restaura `BaseController`, `AuthorizesRequests` e `ValidatesRequests`;
+- cria o índice substituto do webhook em DDL separado antes de remover o índice legado;
+- torna as migrations 000700 e 000800 idempotentes nos pontos de falha conhecidos;
+- valida a integridade estrutural antes de retomar migration parcialmente executada;
+- evita duplicação de tokens de webhook e índices durante reexecução;
+- adiciona `.env.testing` no job de qualidade;
+- habilita `--display-warnings` no PHPUnit;
+- atualiza checkout, cache e ações Docker;
+- adiciona upgrade CloudPanel/Docker 1.3.1 → 1.3.2;
+- mantém todos os recursos e contratos públicos existentes.
 
-- nenhuma API ou funcionalidade existente foi removida;
-- migrations continuam incrementais;
-- compatível com PHP 8.3/8.4, MySQL 8.4, PostgreSQL 17, CloudPanel e Docker;
-- integração Asaas SDK ARGWS e FreeRADIUS preservadas.
+### Validação
 
-## Validações
-
-- `php -l` em todos os arquivos PHP;
-- validação de JSON, YAML e scripts Bash;
-- teste isolado do sanitizador;
-- verificação da presença dos diretórios de runtime no pacote;
-- execução integral do CI recomendada após o push.
+- sintaxe integral de PHP;
+- sintaxe de scripts Bash;
+- parsing de JSON e YAML;
+- verificação da ordem de DDL dos índices;
+- verificação de retomada das migrations;
+- matriz CI para PHP 8.3/8.4, MySQL 8.4 e PostgreSQL 17;
+- builds das imagens app, web e FreeRADIUS.

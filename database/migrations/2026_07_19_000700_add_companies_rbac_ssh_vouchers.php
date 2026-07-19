@@ -10,6 +10,21 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Recuperação idempotente para MySQL: DDL pode ter sido confirmado antes de uma
+        // falha ao remover índices. Nesse cenário, a tabela companies já existe e basta
+        // concluir a reconciliação de índices, sem tentar recriar colunas e tabelas.
+        if (Schema::hasTable('companies')) {
+            if (! $this->partialMigrationCanBeResumed()) {
+                throw new RuntimeException(
+                    'A migration multiempresa foi iniciada parcialmente, mas a estrutura necessária não está completa. ' .
+                    'Restaure o backup anterior ao upgrade ou conclua a estrutura antes de executar migrate novamente.'
+                );
+            }
+
+            $this->reconcileCompanyScopedIndexes();
+
+            return;
+        }
         Schema::table('tenants', function (Blueprint $table): void {
             $table->string('subscription_plan', 80)->nullable();
             $table->json('usage_limits')->nullable();
@@ -274,61 +289,103 @@ return new class extends Migration
             }
         }
 
-        // Ajusta unicidade para o novo escopo empresa, preservando o isolamento por tenant.
-        // Os novos índices são criados antes da remoção dos antigos. No MySQL, os índices
-        // antigos também podem sustentar a FK de tenant_id e não podem ser removidos sem
-        // que exista previamente outro índice cujo primeiro campo seja tenant_id.
-        Schema::table('subscribers', function (Blueprint $table): void {
-            $table->unique(['tenant_id', 'company_id', 'document'], 'subscribers_company_document_unique');
-        });
-        Schema::table('internet_plans', function (Blueprint $table): void {
-            $table->unique(['tenant_id', 'company_id', 'name'], 'internet_plans_company_name_unique');
-        });
-        Schema::table('mikrotik_devices', function (Blueprint $table): void {
-            $table->unique(['tenant_id', 'company_id', 'name'], 'mikrotik_devices_company_name_unique');
-        });
-        Schema::table('network_accesses', function (Blueprint $table): void {
-            $table->unique(['tenant_id', 'company_id', 'username'], 'network_accesses_company_username_unique');
-        });
-        Schema::table('service_contracts', function (Blueprint $table): void {
-            $table->unique(['tenant_id', 'company_id', 'number'], 'service_contracts_company_number_unique');
-        });
-        Schema::table('invoices', function (Blueprint $table): void {
-            $table->unique(['tenant_id', 'company_id', 'number'], 'invoices_company_number_unique');
-            $table->unique(['tenant_id', 'company_id', 'service_contract_id', 'issue_date'], 'invoices_company_contract_issue_unique');
-        });
-        Schema::table('payment_gateway_configs', function (Blueprint $table): void {
-            $table->unique(['tenant_id', 'company_id', 'driver'], 'gateway_configs_company_driver_unique');
-        });
-        Schema::table('vouchers', function (Blueprint $table): void {
-            $table->unique(['tenant_id', 'company_id', 'code'], 'vouchers_company_code_unique');
-        });
+        $this->reconcileCompanyScopedIndexes();
+    }
 
-        Schema::table('subscribers', function (Blueprint $table): void {
-            $table->dropUnique('subscribers_tenant_id_document_unique');
-        });
-        Schema::table('internet_plans', function (Blueprint $table): void {
-            $table->dropUnique('internet_plans_tenant_id_name_unique');
-        });
-        Schema::table('mikrotik_devices', function (Blueprint $table): void {
-            $table->dropUnique('mikrotik_devices_tenant_id_name_unique');
-        });
-        Schema::table('network_accesses', function (Blueprint $table): void {
-            $table->dropUnique('network_accesses_tenant_id_username_unique');
-        });
-        Schema::table('service_contracts', function (Blueprint $table): void {
-            $table->dropUnique('service_contracts_tenant_id_number_unique');
-        });
-        Schema::table('invoices', function (Blueprint $table): void {
-            $table->dropUnique('invoices_tenant_id_number_unique');
-            $table->dropUnique('invoices_tenant_id_service_contract_id_issue_date_unique');
-        });
-        Schema::table('payment_gateway_configs', function (Blueprint $table): void {
-            $table->dropUnique('payment_gateway_configs_tenant_id_driver_unique');
-        });
-        Schema::table('vouchers', function (Blueprint $table): void {
-            $table->dropUnique('vouchers_tenant_id_code_unique');
-        });
+    private function partialMigrationCanBeResumed(): bool
+    {
+        foreach (['companies', 'roles', 'permissions', 'company_user', 'network_profiles', 'voucher_batches', 'vouchers', 'mikrotik_connection_logs', 'mikrotik_command_logs'] as $table) {
+            if (! Schema::hasTable($table)) {
+                return false;
+            }
+        }
+
+        foreach (['subscribers', 'internet_plans', 'mikrotik_devices', 'network_accesses', 'service_contracts', 'invoices', 'payment_gateway_configs', 'audit_logs'] as $table) {
+            if (! Schema::hasTable($table) || ! Schema::hasColumn($table, 'company_id')) {
+                return false;
+            }
+        }
+
+        return Schema::hasColumn('mikrotik_devices', 'ssh_private_key_ciphertext')
+            && Schema::hasColumn('network_accesses', 'network_profile_id')
+            && Schema::hasColumn('internet_plans', 'network_profile_id');
+    }
+
+    private function reconcileCompanyScopedIndexes(): void
+    {
+        $definitions = [
+            'subscribers' => [
+                ['new', 'subscribers_company_document_unique', ['tenant_id', 'company_id', 'document']],
+                ['old', 'subscribers_tenant_id_document_unique'],
+            ],
+            'internet_plans' => [
+                ['new', 'internet_plans_company_name_unique', ['tenant_id', 'company_id', 'name']],
+                ['old', 'internet_plans_tenant_id_name_unique'],
+            ],
+            'mikrotik_devices' => [
+                ['new', 'mikrotik_devices_company_name_unique', ['tenant_id', 'company_id', 'name']],
+                ['old', 'mikrotik_devices_tenant_id_name_unique'],
+            ],
+            'network_accesses' => [
+                ['new', 'network_accesses_company_username_unique', ['tenant_id', 'company_id', 'username']],
+                ['old', 'network_accesses_tenant_id_username_unique'],
+            ],
+            'service_contracts' => [
+                ['new', 'service_contracts_company_number_unique', ['tenant_id', 'company_id', 'number']],
+                ['old', 'service_contracts_tenant_id_number_unique'],
+            ],
+            'invoices' => [
+                ['new', 'invoices_company_number_unique', ['tenant_id', 'company_id', 'number']],
+                ['new', 'invoices_company_contract_issue_unique', ['tenant_id', 'company_id', 'service_contract_id', 'issue_date']],
+                ['old', 'invoices_tenant_id_number_unique'],
+                ['old', 'invoices_tenant_id_service_contract_id_issue_date_unique'],
+            ],
+            'payment_gateway_configs' => [
+                ['new', 'gateway_configs_company_driver_unique', ['tenant_id', 'company_id', 'driver']],
+                ['old', 'payment_gateway_configs_tenant_id_driver_unique'],
+            ],
+            'vouchers' => [
+                ['new', 'vouchers_company_code_unique', ['tenant_id', 'company_id', 'code']],
+                ['old', 'vouchers_tenant_id_code_unique'],
+            ],
+        ];
+
+        foreach ($definitions as $tableName => $operations) {
+            if (! Schema::hasTable($tableName)) {
+                continue;
+            }
+
+            foreach ($operations as $operation) {
+                if ($operation[0] !== 'new' || $this->indexExists($tableName, $operation[1])) {
+                    continue;
+                }
+
+                Schema::table($tableName, function (Blueprint $table) use ($operation): void {
+                    $table->unique($operation[2], $operation[1]);
+                });
+            }
+
+            foreach ($operations as $operation) {
+                if ($operation[0] !== 'old' || ! $this->indexExists($tableName, $operation[1])) {
+                    continue;
+                }
+
+                Schema::table($tableName, function (Blueprint $table) use ($operation): void {
+                    $table->dropUnique($operation[1]);
+                });
+            }
+        }
+    }
+
+    private function indexExists(string $table, string $name): bool
+    {
+        foreach (Schema::getIndexes($table) as $index) {
+            if (($index['name'] ?? null) === $name) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function down(): void
