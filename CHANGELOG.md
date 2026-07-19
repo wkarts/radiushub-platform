@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.3.1 — 2026-07-19
+
+### Corrigido
+
+- migrations MySQL agora criam os índices multiempresa antes de remover os índices antigos usados pelas chaves estrangeiras;
+- sanitização remove blocos `PRIVATE KEY`, `RSA PRIVATE KEY`, `OPENSSH PRIVATE KEY`, `EC PRIVATE KEY` e equivalentes;
+- diretórios graváveis do Laravel são preparados no CI e permanecem presentes no pacote/repositório;
+- testes não falham mais com `Please provide a valid cache path`;
+- consultas da relação usuário → tenants qualificam `tenants.active`, evitando coluna ambígua;
+- fluxo de criação de empresa e isolamento de empresa volta a executar sem erro no middleware de tenant.
+
+### Compatibilidade
+
+- nenhuma funcionalidade da versão 1.3.0 foi removida;
+- banco, arquitetura Laravel/Blade, FreeRADIUS, MikroTik SSH Key, vouchers e Asaas foram preservados;
+- correção incremental compatível com CloudPanel, Docker, MySQL e PostgreSQL.
+
 ## 1.3.0 — 2026-07-19
 
 ### Adicionado

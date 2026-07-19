@@ -275,77 +275,115 @@ return new class extends Migration
         }
 
         // Ajusta unicidade para o novo escopo empresa, preservando o isolamento por tenant.
+        // Os novos índices são criados antes da remoção dos antigos. No MySQL, os índices
+        // antigos também podem sustentar a FK de tenant_id e não podem ser removidos sem
+        // que exista previamente outro índice cujo primeiro campo seja tenant_id.
         Schema::table('subscribers', function (Blueprint $table): void {
-            $table->dropUnique('subscribers_tenant_id_document_unique');
             $table->unique(['tenant_id', 'company_id', 'document'], 'subscribers_company_document_unique');
         });
         Schema::table('internet_plans', function (Blueprint $table): void {
-            $table->dropUnique('internet_plans_tenant_id_name_unique');
             $table->unique(['tenant_id', 'company_id', 'name'], 'internet_plans_company_name_unique');
         });
         Schema::table('mikrotik_devices', function (Blueprint $table): void {
-            $table->dropUnique('mikrotik_devices_tenant_id_name_unique');
             $table->unique(['tenant_id', 'company_id', 'name'], 'mikrotik_devices_company_name_unique');
         });
         Schema::table('network_accesses', function (Blueprint $table): void {
-            $table->dropUnique('network_accesses_tenant_id_username_unique');
             $table->unique(['tenant_id', 'company_id', 'username'], 'network_accesses_company_username_unique');
         });
         Schema::table('service_contracts', function (Blueprint $table): void {
-            $table->dropUnique('service_contracts_tenant_id_number_unique');
             $table->unique(['tenant_id', 'company_id', 'number'], 'service_contracts_company_number_unique');
         });
         Schema::table('invoices', function (Blueprint $table): void {
-            $table->dropUnique('invoices_tenant_id_number_unique');
-            $table->dropUnique('invoices_tenant_id_service_contract_id_issue_date_unique');
             $table->unique(['tenant_id', 'company_id', 'number'], 'invoices_company_number_unique');
             $table->unique(['tenant_id', 'company_id', 'service_contract_id', 'issue_date'], 'invoices_company_contract_issue_unique');
         });
         Schema::table('payment_gateway_configs', function (Blueprint $table): void {
-            $table->dropUnique('payment_gateway_configs_tenant_id_driver_unique');
             $table->unique(['tenant_id', 'company_id', 'driver'], 'gateway_configs_company_driver_unique');
         });
         Schema::table('vouchers', function (Blueprint $table): void {
-            $table->dropUnique('vouchers_tenant_id_code_unique');
             $table->unique(['tenant_id', 'company_id', 'code'], 'vouchers_company_code_unique');
+        });
+
+        Schema::table('subscribers', function (Blueprint $table): void {
+            $table->dropUnique('subscribers_tenant_id_document_unique');
+        });
+        Schema::table('internet_plans', function (Blueprint $table): void {
+            $table->dropUnique('internet_plans_tenant_id_name_unique');
+        });
+        Schema::table('mikrotik_devices', function (Blueprint $table): void {
+            $table->dropUnique('mikrotik_devices_tenant_id_name_unique');
+        });
+        Schema::table('network_accesses', function (Blueprint $table): void {
+            $table->dropUnique('network_accesses_tenant_id_username_unique');
+        });
+        Schema::table('service_contracts', function (Blueprint $table): void {
+            $table->dropUnique('service_contracts_tenant_id_number_unique');
+        });
+        Schema::table('invoices', function (Blueprint $table): void {
+            $table->dropUnique('invoices_tenant_id_number_unique');
+            $table->dropUnique('invoices_tenant_id_service_contract_id_issue_date_unique');
+        });
+        Schema::table('payment_gateway_configs', function (Blueprint $table): void {
+            $table->dropUnique('payment_gateway_configs_tenant_id_driver_unique');
+        });
+        Schema::table('vouchers', function (Blueprint $table): void {
+            $table->dropUnique('vouchers_tenant_id_code_unique');
         });
     }
 
     public function down(): void
     {
+        // Restaura primeiro os índices antigos para manter as FKs válidas também no MySQL.
+        Schema::table('subscribers', function (Blueprint $table): void {
+            $table->unique(['tenant_id', 'document'], 'subscribers_tenant_id_document_unique');
+        });
+        Schema::table('internet_plans', function (Blueprint $table): void {
+            $table->unique(['tenant_id', 'name'], 'internet_plans_tenant_id_name_unique');
+        });
+        Schema::table('mikrotik_devices', function (Blueprint $table): void {
+            $table->unique(['tenant_id', 'name'], 'mikrotik_devices_tenant_id_name_unique');
+        });
+        Schema::table('network_accesses', function (Blueprint $table): void {
+            $table->unique(['tenant_id', 'username'], 'network_accesses_tenant_id_username_unique');
+        });
+        Schema::table('service_contracts', function (Blueprint $table): void {
+            $table->unique(['tenant_id', 'number'], 'service_contracts_tenant_id_number_unique');
+        });
+        Schema::table('invoices', function (Blueprint $table): void {
+            $table->unique(['tenant_id', 'number'], 'invoices_tenant_id_number_unique');
+            $table->unique(['tenant_id', 'service_contract_id', 'issue_date'], 'invoices_tenant_id_service_contract_id_issue_date_unique');
+        });
+        Schema::table('payment_gateway_configs', function (Blueprint $table): void {
+            $table->unique(['tenant_id', 'driver'], 'payment_gateway_configs_tenant_id_driver_unique');
+        });
+        Schema::table('vouchers', function (Blueprint $table): void {
+            $table->unique(['tenant_id', 'code'], 'vouchers_tenant_id_code_unique');
+        });
+
         Schema::table('vouchers', function (Blueprint $table): void {
             $table->dropUnique('vouchers_company_code_unique');
         });
-
         Schema::table('payment_gateway_configs', function (Blueprint $table): void {
             $table->dropUnique('gateway_configs_company_driver_unique');
-            $table->unique(['tenant_id', 'driver']);
         });
         Schema::table('invoices', function (Blueprint $table): void {
             $table->dropUnique('invoices_company_number_unique');
             $table->dropUnique('invoices_company_contract_issue_unique');
-            $table->unique(['tenant_id', 'number']);
-            $table->unique(['tenant_id', 'service_contract_id', 'issue_date']);
         });
         Schema::table('service_contracts', function (Blueprint $table): void {
             $table->dropUnique('service_contracts_company_number_unique');
-            $table->unique(['tenant_id', 'number']);
         });
         Schema::table('network_accesses', function (Blueprint $table): void {
             $table->dropUnique('network_accesses_company_username_unique');
-            $table->unique(['tenant_id', 'username']);
         });
         Schema::table('mikrotik_devices', function (Blueprint $table): void {
             $table->dropUnique('mikrotik_devices_company_name_unique');
-            $table->unique(['tenant_id', 'name']);
         });
         Schema::table('internet_plans', function (Blueprint $table): void {
             $table->dropUnique('internet_plans_company_name_unique');
-            $table->unique(['tenant_id', 'name']);
         });
         Schema::table('subscribers', function (Blueprint $table): void {
             $table->dropUnique('subscribers_company_document_unique');
-            $table->unique(['tenant_id', 'document']);
         });
 
         Schema::table('mikrotik_devices', function (Blueprint $table): void {

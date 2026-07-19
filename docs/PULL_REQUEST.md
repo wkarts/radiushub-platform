@@ -1,23 +1,54 @@
-# Sugestão de Pull Request
+# Pull Request — RadiusHub Platform 1.3.1
 
-**Branch:** `feat/docker-cloudpanel-mysql-postgres-v1.3.0`
+## Branch
 
-**Título:** `feat: preparar RadiusHub 1.3.0 para Docker, CloudPanel e GHCR`
+`fix/v1.3.1-ci-mysql-tests`
 
-**Commit principal:**
+## Título
 
-```text
-feat(platform): adicionar deploy Docker/CloudPanel e suporte MySQL/PostgreSQL
-```
+`fix(ci): corrigir migrations MySQL, cache Blade e testes de segurança`
 
-**Descrição:**
+## Commit principal
 
-- corrige dependência indevida do hostname `redis` no CloudPanel nativo;
-- adiciona cache resiliente e limitador de login em banco;
-- implementa suporte real a MySQL e PostgreSQL;
-- adiciona criptografia RADIUS nativa por banco;
-- adiciona imagens Docker app/web/FreeRADIUS;
-- adiciona Compose com profiles MySQL/PostgreSQL;
-- adiciona instaladores, atualização, backup e diagnóstico;
-- adiciona CI, publicação GHCR, releases e Dependabot;
-- preserva integração Asaas SDK ARGWS 0.2.62.
+`fix(platform): estabilizar CI no MySQL e corrigir testes multiempresa`
+
+## Mensagem de merge
+
+`fix: publicar RadiusHub Platform v1.3.1 com CI estável em PHP, MySQL, PostgreSQL e Docker`
+
+## Objetivo
+
+Corrigir as falhas identificadas no workflow de CI da versão 1.3.0 sem remover funcionalidades ou alterar abruptamente a arquitetura Laravel/Blade, FreeRADIUS, MikroTik SSH Key, vouchers e Asaas.
+
+## Causas corrigidas
+
+- remoção de índice MySQL ainda utilizado por chave estrangeira;
+- ausência do diretório de cache das views Blade após checkout;
+- sanitizador sem suporte ao formato genérico `BEGIN PRIVATE KEY`;
+- consulta ambígua do campo `active` na relação usuário → tenants;
+- falhas derivadas nos testes de login, criação de empresa e isolamento multiempresa.
+
+## Solução
+
+- cria os índices multiempresa antes de remover os índices antigos;
+- restaura índices na ordem segura durante rollback;
+- prepara diretórios graváveis no CI e no bootstrap dos testes;
+- mantém placeholders versionáveis nos diretórios de runtime;
+- amplia a sanitização de chaves e credenciais;
+- qualifica `tenants.active` nas relações many-to-many;
+- limpa a empresa selecionada ao trocar de tenant.
+
+## Compatibilidade
+
+- nenhuma API ou funcionalidade existente foi removida;
+- migrations continuam incrementais;
+- compatível com PHP 8.3/8.4, MySQL 8.4, PostgreSQL 17, CloudPanel e Docker;
+- integração Asaas SDK ARGWS e FreeRADIUS preservadas.
+
+## Validações
+
+- `php -l` em todos os arquivos PHP;
+- validação de JSON, YAML e scripts Bash;
+- teste isolado do sanitizador;
+- verificação da presença dos diretórios de runtime no pacote;
+- execução integral do CI recomendada após o push.
