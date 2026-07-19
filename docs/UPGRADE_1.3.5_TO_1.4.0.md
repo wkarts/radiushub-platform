@@ -37,3 +37,14 @@ export RADIUSHUB_TAG=1.4.0
 ## Preservação
 
 São preservados `.env`, `APP_KEY`, dados, chaves SSH, credenciais RADIUS, gateways Asaas e tokens de webhook.
+
+
+## Reconciliação obrigatória de primeiro acesso
+
+O script de upgrade executa `php artisan radiushub:bootstrap-platform`. Assim, instalações 1.3.5 sem registros em `tenants`, `companies`, `tenant_user` ou `company_user` deixam de retornar 403 após o login. A senha existente do usuário identificado por `SEED_ADMIN_EMAIL` ou `SEED_ADMIN_LOGIN` é preservada.
+
+Reparo isolado:
+
+```bash
+bash scripts/repair-cloudpanel-bootstrap.sh
+```

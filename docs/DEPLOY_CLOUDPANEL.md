@@ -44,7 +44,8 @@ O instalador:
 - valida a extensão Redis quando cache ou filas usam Redis;
 - preserva e protege `.env`;
 - instala dependências;
-- executa migrations e seed;
+- executa migrations, seed e `radiushub:bootstrap-platform`;
+- cria ou reconcilia Superadministrador, tenant e empresa padrão;
 - gera caches;
 - valida readiness;
 - gera Nginx, Supervisor e Cron.
@@ -157,3 +158,15 @@ chmod 600 .env
 ```
 
 Para 1.3.5 → 1.4.0, use `scripts/upgrade-1.3.5-to-1.4.0.sh`.
+
+
+## Corrigir instalação antiga sem tenant/empresa
+
+Quando uma instalação anterior autentica e exibe `403 - O usuário não possui tenant ativo vinculado`, atualize os arquivos e execute:
+
+```bash
+chmod +x scripts/*.sh artisan
+bash scripts/repair-cloudpanel-bootstrap.sh
+```
+
+O comando preserva a senha existente, identifica a conta principal por `SEED_ADMIN_EMAIL`/`SEED_ADMIN_LOGIN`, cria ou reutiliza o tenant e a empresa padrão e refaz os vínculos administrativos. Consulte `docs/FIRST_ACCESS.md`.

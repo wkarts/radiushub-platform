@@ -19,6 +19,7 @@
 ./SECURITY.md
 ./THIRD_PARTY_NOTICES.md
 ./VERSION
+./app/Console/Commands/BootstrapPlatform.php
 ./app/Console/Commands/GenerateRecurringInvoices.php
 ./app/Console/Commands/HealthCheckCommand.php
 ./app/Console/Commands/NetworkHealthCheck.php
@@ -144,6 +145,7 @@
 ./app/Services/Mikrotik/MikrotikSyncService.php
 ./app/Services/Mikrotik/RouterOsApiClient.php
 ./app/Services/Mikrotik/RouterOsCommandBuilder.php
+./app/Services/Platform/PlatformBootstrapService.php
 ./app/Services/Radius/CoaService.php
 ./app/Services/Radius/RadClientService.php
 ./app/Services/Security/RadiusCredentialVault.php
@@ -168,6 +170,7 @@
 ./config/logging.php
 ./config/mail.php
 ./config/mikrotik.php
+./config/platform.php
 ./config/playground.php
 ./config/queue.php
 ./config/radius.php
@@ -187,6 +190,7 @@
 ./database/migrations/2026_07_19_000700_add_companies_rbac_ssh_vouchers.php
 ./database/migrations/2026_07_19_000800_secure_asaas_webhook_per_gateway.php
 ./database/seeders/DatabaseSeeder.php
+./database/seeders/PlatformBootstrapSeeder.php
 ./database/seeders/PlaygroundSeeder.php
 ./database/seeders/RolePermissionSeeder.php
 ./deploy/cloudpanel/cron.txt
@@ -214,6 +218,7 @@
 ./docs/CRUD_UI.md
 ./docs/DEPLOY_CLOUDPANEL.md
 ./docs/DEPLOY_DOCKER.md
+./docs/FIRST_ACCESS.md
 ./docs/GITHUB.md
 ./docs/MIKROTIK.md
 ./docs/MIKROTIK_SSH.md
@@ -485,6 +490,7 @@
 ./scripts/php-lint.php
 ./scripts/playground.sh
 ./scripts/publish-github.sh
+./scripts/repair-cloudpanel-bootstrap.sh
 ./scripts/smoke-http.sh
 ./scripts/smoke-radius.sh
 ./scripts/update-cloudpanel.sh
@@ -515,6 +521,7 @@
 ./tests/Feature/BoundModelScopeTest.php
 ./tests/Feature/CompanyProvisioningTest.php
 ./tests/Feature/HealthEndpointsTest.php
+./tests/Feature/PlatformBootstrapTest.php
 ./tests/Feature/PlatformSchemaTest.php
 ./tests/Feature/PlaygroundSeederTest.php
 ./tests/Feature/TenantIsolationTest.php

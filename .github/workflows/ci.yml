@@ -22,6 +22,11 @@ jobs:
         php: ['8.3', '8.4']
     steps:
       - uses: actions/checkout@v6
+      - name: Validar arquivos distribuídos e normalizar scripts
+        run: |
+          test -f .env.playground.example
+          test -f .env.cloudpanel.playground.example
+          chmod +x scripts/*.sh artisan
       - name: Preparar diretórios graváveis do Laravel
         run: mkdir -p bootstrap/cache storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
       - uses: shivammathur/setup-php@v2
@@ -77,6 +82,11 @@ jobs:
           --health-interval=5s --health-timeout=5s --health-retries=30
     steps:
       - uses: actions/checkout@v6
+      - name: Validar arquivos distribuídos e normalizar scripts
+        run: |
+          test -f .env.playground.example
+          test -f .env.cloudpanel.playground.example
+          chmod +x scripts/*.sh artisan
       - name: Preparar diretórios graváveis do Laravel
         run: mkdir -p bootstrap/cache storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
       - uses: shivammathur/setup-php@v2
@@ -92,6 +102,7 @@ jobs:
       - run: cp .env.docker.postgres.example .env
       - run: php artisan migrate --force
       - run: php artisan db:seed --force
+      - run: php artisan radiushub:bootstrap-platform --json
       - run: php artisan radiushub:doctor
       - run: php artisan radiushub:radius:render --output=storage/app/radius-ci --force
 
@@ -126,6 +137,11 @@ jobs:
           --health-interval=5s --health-timeout=5s --health-retries=30
     steps:
       - uses: actions/checkout@v6
+      - name: Validar arquivos distribuídos e normalizar scripts
+        run: |
+          test -f .env.playground.example
+          test -f .env.cloudpanel.playground.example
+          chmod +x scripts/*.sh artisan
       - name: Preparar diretórios graváveis do Laravel
         run: mkdir -p bootstrap/cache storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
       - uses: shivammathur/setup-php@v2
@@ -141,6 +157,7 @@ jobs:
       - run: cp .env.docker.mysql.example .env
       - run: php artisan migrate --force
       - run: php artisan db:seed --force
+      - run: php artisan radiushub:bootstrap-platform --json
       - run: php artisan radiushub:doctor
       - run: php artisan radiushub:radius:render --output=storage/app/radius-ci --force
 
@@ -159,6 +176,11 @@ jobs:
             dockerfile: docker/freeradius/Dockerfile
     steps:
       - uses: actions/checkout@v6
+      - name: Validar arquivos distribuídos e normalizar scripts
+        run: |
+          test -f .env.playground.example
+          test -f .env.cloudpanel.playground.example
+          chmod +x scripts/*.sh artisan
       - uses: docker/setup-buildx-action@v4
       - uses: docker/build-push-action@v7
         with:
@@ -177,6 +199,11 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v6
+      - name: Validar arquivos distribuídos e normalizar scripts
+        run: |
+          test -f .env.playground.example
+          test -f .env.cloudpanel.playground.example
+          chmod +x scripts/*.sh artisan
       - name: Preparar playground
         run: |
           cp .env.playground.example .env.playground
@@ -188,22 +215,22 @@ jobs:
           sed -i 's|^PLAYGROUND_ADMIN_PASSWORD=.*|PLAYGROUND_ADMIN_PASSWORD=PlaygroundCI@123!|' .env.playground
           chmod 600 .env.playground
       - name: Iniciar playground Docker pelo fluxo CloudPanel
-        run: ./scripts/install-cloudpanel-docker.sh --playground --url http://127.0.0.1:8080
+        run: bash ./scripts/install-cloudpanel-docker.sh --playground --url http://127.0.0.1:8080
       - name: Validar proxy gerado e autenticação
         env:
           ENV_FILE: .env.playground
         run: |
           test -s storage/app/deploy/nginx-docker-reverse-proxy.conf
           grep -q 'proxy_pass http://127.0.0.1:8080' storage/app/deploy/nginx-docker-reverse-proxy.conf
-          ./scripts/validate-deployment.sh --http --login --url http://127.0.0.1:8080
+          bash ./scripts/validate-deployment.sh --http --login --url http://127.0.0.1:8080
       - name: Estado final
         if: always()
         run: |
-          ENV_FILE=.env.playground ./scripts/playground.sh status || true
-          ENV_FILE=.env.playground ./scripts/playground.sh logs || true
+          ENV_FILE=.env.playground bash ./scripts/playground.sh status || true
+          ENV_FILE=.env.playground bash ./scripts/playground.sh logs || true
       - name: Encerrar playground
         if: always()
-        run: ENV_FILE=.env.playground ./scripts/playground.sh down || true
+        run: ENV_FILE=.env.playground bash ./scripts/playground.sh down || true
 
   cloudpanel-native-smoke:
     name: CloudPanel nativo / smoke de aplicação
@@ -222,6 +249,11 @@ jobs:
           --health-interval=5s --health-timeout=5s --health-retries=30
     steps:
       - uses: actions/checkout@v6
+      - name: Validar arquivos distribuídos e normalizar scripts
+        run: |
+          test -f .env.playground.example
+          test -f .env.cloudpanel.playground.example
+          chmod +x scripts/*.sh artisan
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
@@ -246,7 +278,7 @@ jobs:
           sed -i 's|^PLAYGROUND_ADMIN_PASSWORD=.*|PLAYGROUND_ADMIN_PASSWORD=CloudPanelCI@123!|' .env
           chmod 600 .env
       - name: Instalar como CloudPanel nativo
-        run: ./scripts/install-cloudpanel-playground.sh --reuse-env
+        run: bash ./scripts/install-cloudpanel-playground.sh --reuse-env
       - name: Iniciar servidor de smoke
         run: |
           php -S 127.0.0.1:8090 -t public > storage/logs/cloudpanel-smoke-server.log 2>&1 &
@@ -259,7 +291,7 @@ jobs:
           APP_URL: http://127.0.0.1:8090
           PLAYGROUND_ADMIN_EMAIL: admin@playground.local
           PLAYGROUND_ADMIN_PASSWORD: CloudPanelCI@123!
-        run: ./scripts/smoke-http.sh
+        run: bash ./scripts/smoke-http.sh
       - name: Validar artefatos do CloudPanel
         run: |
           test -s storage/app/deploy/supervisor-radiushub.conf

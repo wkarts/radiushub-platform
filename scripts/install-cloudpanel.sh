@@ -21,8 +21,10 @@ if [[ ! -f "$ENV_FILE" ]]; then
   cp .env.cloudpanel.example "$ENV_FILE"
 fi
 backup_env
+chmod +x scripts/*.sh artisan 2>/dev/null || true
 ensure_runtime_dirs
 ensure_secrets
+set_env APP_VERSION "$(cat VERSION)"
 set_env DEPLOYMENT_MODE "$(read_env DEPLOYMENT_MODE native)"
 set_env CACHE_STORE "$(read_env CACHE_STORE database)"
 set_env CACHE_LIMITER "$(read_env CACHE_LIMITER database)"
@@ -42,6 +44,7 @@ if [[ -t 0 ]]; then
   current="$(read_env DB_USERNAME radiushub)"; read -r -p "Usuário do banco [$current]: " answer; [[ -n "$answer" ]] && set_env DB_USERNAME "$answer"
   read -r -s -p "Senha do banco (Enter mantém a atual): " answer; echo; [[ -n "$answer" ]] && set_env DB_PASSWORD "$answer"
   current="$(read_env SEED_ADMIN_EMAIL admin@example.com)"; read -r -p "E-mail do superadministrador [$current]: " answer; [[ -n "$answer" ]] && set_env SEED_ADMIN_EMAIL "$answer"
+  current="$(read_env SEED_ADMIN_LOGIN admin)"; read -r -p "Login do superadministrador [$current]: " answer; [[ -n "$answer" ]] && set_env SEED_ADMIN_LOGIN "$answer"
   read -r -s -p "Senha inicial do superadministrador (Enter mantém/gera): " answer; echo; [[ -n "$answer" ]] && set_env SEED_ADMIN_PASSWORD "$answer"
 fi
 
@@ -75,6 +78,7 @@ rm -f bootstrap/cache/config.php bootstrap/cache/events.php bootstrap/cache/rout
 "$PHP_BIN" scripts/check-migration-integrity.php
 "$PHP_BIN" artisan migrate --force
 "$PHP_BIN" artisan db:seed --force
+"$PHP_BIN" artisan radiushub:bootstrap-platform
 "$PHP_BIN" artisan storage:link --force || true
 "$PHP_BIN" artisan config:cache
 "$PHP_BIN" artisan view:cache
@@ -108,7 +112,8 @@ cat <<INFO
 
 Instalação nativa concluída.
 URL: $(read_env APP_URL)
-Usuário inicial: $(read_env SEED_ADMIN_EMAIL)
+E-mail inicial: $(read_env SEED_ADMIN_EMAIL)
+Login inicial: $(read_env SEED_ADMIN_LOGIN admin)
 Senha inicial: $(read_env SEED_ADMIN_PASSWORD)
 
 Próximos comandos administrativos:

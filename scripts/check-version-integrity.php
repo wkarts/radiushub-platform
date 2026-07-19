@@ -105,6 +105,21 @@ $checks = [
         'radiushub:doctor',
         'DEPLOYMENT_VALIDATION_OK',
     ],
+    '.dockerignore' => [
+        '!.env.playground.example',
+        '!.env.cloudpanel.playground.example',
+    ],
+    '.gitignore' => [
+        '!/.env.playground.example',
+        '!/.env.cloudpanel.playground.example',
+    ],
+    '.github/workflows/ci.yml' => [
+        'test -f .env.playground.example',
+        'test -f .env.cloudpanel.playground.example',
+        'chmod +x scripts/*.sh artisan',
+        'bash ./scripts/playground.sh',
+        'bash ./scripts/install-cloudpanel-playground.sh',
+    ],
     '.github/workflows/release.yml' => [
         "workflow_run:",
         "workflows: ['CI']",
@@ -130,6 +145,7 @@ foreach ($checks as $file => $needles) {
 }
 
 if ($errors !== []) {
+    $errors = array_values(array_unique($errors));
     fwrite(STDERR, "Falha na integridade da versão/release:\n");
 
     foreach ($errors as $error) {

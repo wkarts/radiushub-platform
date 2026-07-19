@@ -46,6 +46,9 @@ foreach ([
     'app/Services/Security/SshKeyVault.php',
     'app/Services/Security/RadiusCredentialVault.php',
     'app/Services/Audit/AuditLogger.php',
+    'app/Services/Platform/PlatformBootstrapService.php',
+    'app/Console/Commands/BootstrapPlatform.php',
+    'database/seeders/PlatformBootstrapSeeder.php',
     'app/Http/Middleware/EnsureBoundModelsBelongToContext.php',
     'database/seeders/RolePermissionSeeder.php',
     'database/seeders/PlaygroundSeeder.php',
@@ -54,6 +57,8 @@ foreach ([
     'scripts/playground.sh',
     'scripts/install-cloudpanel.sh',
     'scripts/install-cloudpanel-docker.sh',
+    'scripts/repair-cloudpanel-bootstrap.sh',
+    'docs/FIRST_ACCESS.md',
     'scripts/smoke-http.sh',
     'scripts/smoke-radius.sh',
     'docs/PLANNING_COMPLIANCE.md',
@@ -110,6 +115,28 @@ foreach (['/health/ready', 'radiushub:playground:verify', 'smoke-http.sh', 'smok
 $contains($http, 'Token CSRF', 'smoke HTTP');
 $contains($radius, 'Access-Accept', 'smoke RADIUS');
 $contains($radius, 'Accounting-Response', 'smoke accounting');
+
+
+$bootstrap = $requireFile('app/Services/Platform/PlatformBootstrapService.php');
+foreach (['ensureAdmin', 'ensureTenant', 'ensureCompany', 'attachTenantAdmin', 'attachCompanyAdmin'] as $contract) {
+    $contains($bootstrap, $contract, 'bootstrap inicial da plataforma');
+}
+$contains($requireFile('app/Console/Commands/BootstrapPlatform.php'), 'radiushub:bootstrap-platform', 'comando de bootstrap');
+$contains($requireFile('scripts/upgrade-1.3.5-to-1.4.0.sh'), 'radiushub:bootstrap-platform', 'upgrade CloudPanel 1.3.5 → 1.4.0');
+$contains($requireFile('scripts/repair-cloudpanel-bootstrap.sh'), 'SEED_DEFAULT_TENANT', 'reparo CloudPanel');
+$contains($requireFile('scripts/repair-cloudpanel-bootstrap.sh'), 'SEED_DEFAULT_COMPANY', 'reparo CloudPanel');
+$contains($requireFile('scripts/repair-cloudpanel-bootstrap.sh'), 'set_env APP_VERSION', 'reparo CloudPanel');
+$contains($requireFile('scripts/repair-cloudpanel-bootstrap.sh'), 'REDIS_HOST', 'reparo CloudPanel');
+$contains($requireFile('app/Http/Controllers/Auth/AuthenticatedSessionController.php'), "forget([
+                'url.intended'", 'redirecionamento seguro do Superadministrador');
+$contains($requireFile('app/Http/Middleware/SetCurrentTenant.php'), "redirect()->route('platform.dashboard')", 'fallback sem tenant');
+
+$gitignore = $requireFile('.gitignore');
+$contains($gitignore, '!/.env.playground.example', 'distribuição do playground');
+$contains($gitignore, '!/.env.cloudpanel.playground.example', 'distribuição CloudPanel playground');
+$ci = $requireFile('.github/workflows/ci.yml');
+$contains($ci, 'test -f .env.playground.example', 'CI de distribuição');
+$contains($ci, 'chmod +x scripts/*.sh artisan', 'CI de permissões');
 
 $rbac = $requireFile('database/seeders/RolePermissionSeeder.php');
 $contains($rbac, "pivot?->role ?? null) !== 'tenant_admin'", 'backfill RBAC');

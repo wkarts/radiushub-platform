@@ -1,52 +1,68 @@
-# Validação da entrega 1.4.0
+# Validação da correção RadiusHub Platform 1.4.0
 
-## Escopo analisado
+## Evidências analisadas
 
-A versão 1.4.0 foi construída sobre a 1.3.5, preservando Laravel/Blade, multi-tenancy, RBAC, FreeRADIUS, MikroTik SSH Key, vouchers, financeiro, Asaas, Docker, CloudPanel e automação de release.
+### Pull Request / workflow 80438529865
 
-## Validação executada no ambiente de geração
+Falhas confirmadas nos logs:
 
-- lint de **339 arquivos PHP** com `php -l`;
-- lint de **27 scripts Bash** com `bash -n`/`sh -n`;
-- parsing de **3 arquivos JSON** e **11 arquivos YAML**;
-- verificação de versão por `scripts/check-version-integrity.php`;
-- verificação de sequências de migrations por `scripts/check-migration-integrity.php`;
-- inspeção de rotas, controllers, requests, policies, middleware, services e views;
-- verificação estática dos serviços e dependências do Docker Compose;
-- verificação dos exemplos `.env` de produção e playground;
-- verificação de cookies seguros nos exemplos de produção;
-- teste de regressão para impedir promoção indevida de membros no backfill RBAC;
-- contrato de conformidade para componentes, rotas, sidebar e smoke tests;
-- execução positiva de `scripts/check-planning-compliance.php`;
-- verificação do instalador Docker + reverse proxy CloudPanel e do adiamento seguro do login HTTPS até o proxy ser aplicado;
-- verificação do bloqueio do simulador fora do playground;
-- geração de árvore com **536 arquivos**, manifesto SHA-256, patch incremental e teste de integridade do ZIP.
+- `.env.playground.example` ausente após `actions/checkout`;
+- `.env.cloudpanel.playground.example` ausente após `actions/checkout`;
+- `scripts/playground.sh: Permission denied` no runner;
+- `composer version:check` interrompido pela ausência dos exemplos;
+- jobs PHP 8.3, PHP 8.4, MySQL 8.4, PostgreSQL 17, Docker Playground e CloudPanel nativo afetados pela mesma causa de distribuição.
 
-## Validação configurada no GitHub Actions
+Causa-raiz: `.gitignore` ignorava `/.env.*` e não possuía exceções para os dois exemplos novos. Além disso, arquivos criados no commit não conservaram o bit executável esperado pelos jobs que os chamavam diretamente.
 
-O workflow executa, depois do push:
+### CloudPanel 1.3.5
 
-- Composer/PHPUnit em PHP 8.3 e 8.4;
-- migrations, seed, Doctor e renderização FreeRADIUS no PostgreSQL 17;
-- migrations, seed, Doctor e renderização FreeRADIUS no MySQL 8.4;
-- build das imagens app, web e FreeRADIUS;
-- playground Docker completo;
-- liveness/readiness;
-- login autenticado;
-- simulador MikroTik;
-- autenticação FreeRADIUS com `Access-Accept`;
-- accounting com `Accounting-Response` e confirmação no banco;
-- instalação nativa equivalente ao fluxo CloudPanel e geração de Nginx/Supervisor/Cron.
+A tela pós-login exibiu `403 · Acesso negado — O usuário não possui tenant ativo vinculado`.
 
-## Não executado localmente
+A inspeção do dump fornecido confirmou usuários Superadministradores ativos, mas ausência de registros iniciais de tenant/empresa e vínculos correspondentes. O login do Superadministrador também respeitava uma URL `intended` antiga para `/`, enviando a conta global ao middleware de tenant.
 
-Este ambiente não possui Composer, Docker Engine, MySQL ou PostgreSQL. Portanto, os testes dinâmicos acima não foram simulados como se tivessem sido executados localmente; eles permanecem configurados para execução real no CI.
+## Correções verificadas estaticamente
 
-## Homologação externa ainda necessária
+- exemplos `.env.playground.example` e `.env.cloudpanel.playground.example` liberados no `.gitignore` e `.dockerignore`;
+- CI confirma a existência dos arquivos após cada checkout;
+- CI normaliza `scripts/*.sh` e `artisan` e chama os fluxos críticos por `bash`;
+- serviço idempotente `PlatformBootstrapService` cria/repara Superadministrador, tenant, empresa e vínculos;
+- comando `radiushub:bootstrap-platform` disponível para instalação, atualização e reparo;
+- senha existente preservada quando a redefinição não é explicitamente solicitada;
+- instaladores Docker/CloudPanel e upgrade 1.3.5 → 1.4.0 executam o bootstrap;
+- reparo dedicado `scripts/repair-cloudpanel-bootstrap.sh` incluído;
+- upgrade/reparo atualizam `APP_VERSION` e corrigem `REDIS_HOST=redis` herdado indevidamente em CloudPanel nativo;
+- login e 2FA do Superadministrador direcionam diretamente ao dashboard global;
+- middleware sem tenant não retorna 403 para Superadministrador;
+- middleware sem empresa direciona administradores ao cadastro de empresas;
+- páginas 403/404 não retornam para uma rota dependente de contexto ausente;
+- testes de regressão adicionados para bootstrap, senha preservada, login e ausência de tenant.
 
-- SSH Key e fingerprint em MikroTik RouterOS real;
-- Hotspot/PPPoE em rede real;
-- conta e webhook Asaas Sandbox;
-- SMTP real;
-- firewall e acesso RADIUS dos NAS;
-- revisão visual nos dispositivos físicos da operação.
+## Validações executadas neste ambiente
+
+- `php scripts/check-version-integrity.php`;
+- `php scripts/check-migration-integrity.php`;
+- `php scripts/check-planning-compliance.php`;
+- sintaxe de 344 arquivos PHP com `php -l`;
+- sintaxe de todos os scripts Bash e entrypoint Docker com `bash -n`;
+- parsing dos arquivos JSON e YAML;
+- verificação de que os exemplos de playground não são ignorados pelo Git;
+- geração e conferência do manifesto SHA-256;
+- aplicação do patch sobre uma cópia limpa da versão 1.4.0;
+- teste de integridade do ZIP final.
+
+## Validações configuradas para o GitHub Actions
+
+Após o envio do commit corretivo, o workflow executará:
+
+- PHPUnit em PHP 8.3 e 8.4;
+- migrations/seed/bootstrap em MySQL 8.4;
+- migrations/seed/bootstrap em PostgreSQL 17;
+- builds Docker app, web e FreeRADIUS;
+- Docker Playground completo;
+- smoke de login;
+- RADIUS `Access-Accept` e accounting `Accounting-Response`;
+- instalação nativa equivalente ao CloudPanel.
+
+## Limitações deste ambiente
+
+Composer, vendor Laravel, Docker Engine, MySQL e PostgreSQL não estão disponíveis localmente. Portanto, PHPUnit e os containers não foram executados aqui. A correção foi validada estaticamente e está preparada para a matriz real do GitHub Actions.

@@ -9,6 +9,8 @@
 !/.env.cloudpanel.example
 !/.env.docker.postgres.example
 !/.env.docker.mysql.example
+!/.env.playground.example
+!/.env.cloudpanel.playground.example
 /vendor
 /node_modules
 /public/storage

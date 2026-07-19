@@ -4,7 +4,7 @@ Plataforma web multi-tenant em PHP/Laravel para administrar empresas, clientes, 
 
 ## Recursos principais
 
-- Superadministrador global, tenants e múltiplas empresas por tenant.
+- Superadministrador global identificado por login/e-mail, tenant e empresa padrão reconciliados no primeiro deploy.
 - RBAC por empresa com papéis, permissões e isolamento por `tenant_id` e `company_id`.
 - Criação de empresa com administrador opcional, senha inicial alterável e auditoria.
 - MikroTik por SSH Key, fingerprint, chave criptografada, allowlist, inventário e histórico.
@@ -168,10 +168,11 @@ chmod +x scripts/upgrade-1.3.5-to-1.4.0.sh
 ./scripts/upgrade-1.3.5-to-1.4.0.sh
 ```
 
-O upgrade não habilita playground na instalação existente e preserva `.env`, `APP_KEY`, banco, chaves SSH, segredos RADIUS e credenciais Asaas.
+O upgrade não habilita playground na instalação existente, preserva `.env`, `APP_KEY`, banco, chaves SSH, segredos RADIUS e credenciais Asaas e reconcilia o Superadministrador, tenant e empresa padrão. Para reparar diretamente uma instalação antiga com erro 403, execute `bash scripts/repair-cloudpanel-bootstrap.sh`.
 
 ## Documentação
 
+- [Primeiro acesso e recuperação do erro 403](docs/FIRST_ACCESS.md)
 - [Conformidade do planejamento](docs/PLANNING_COMPLIANCE.md)
 - [Playground](docs/PLAYGROUND.md)
 - [Arquitetura](docs/ARCHITECTURE.md)

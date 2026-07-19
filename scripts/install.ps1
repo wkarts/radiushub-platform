@@ -44,6 +44,7 @@ if ($content -match '(?m)^SEED_ADMIN_PASSWORD=ChangeMe@123!') {
     Set-EnvValue 'SEED_ADMIN_PASSWORD' ($adminPassword + 'Aa1!')
 }
 Set-EnvValue 'COMPOSE_PROFILES' $Database
+if ($content -notmatch '(?m)^SEED_ADMIN_LOGIN=') { Set-EnvValue 'SEED_ADMIN_LOGIN' 'admin' }
 
 $profileArgs = @('--profile', $Database)
 if ($PullImages) {
@@ -56,7 +57,8 @@ docker compose @profileArgs run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false ap
 if ($LASTEXITCODE -ne 0) { throw "Falha na integridade das migrations." }
 docker compose @profileArgs run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php artisan migrate --force
 docker compose @profileArgs run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php artisan db:seed --force
+docker compose @profileArgs run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php artisan radiushub:bootstrap-platform
 docker compose @profileArgs up -d --remove-orphans
 
 docker compose @profileArgs ps
-Write-Host 'RadiusHub instalado. Consulte o e-mail e a senha inicial no arquivo .env.' -ForegroundColor Green
+Write-Host 'RadiusHub instalado. Consulte login, e-mail e senha inicial no arquivo .env.' -ForegroundColor Green

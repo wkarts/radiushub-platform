@@ -54,6 +54,9 @@ ensure_secrets() {
   current="$(read_env RADIUS_LOCAL_SECRET)"
   [[ -n "$current" && "$current" != change-this* ]] || set_env RADIUS_LOCAL_SECRET "$(random_base64 32)"
 
+  current="$(read_env SEED_ADMIN_LOGIN)"
+  [[ -n "$current" ]] || set_env SEED_ADMIN_LOGIN admin
+
   current="$(read_env SEED_ADMIN_PASSWORD)"
   [[ -n "$current" && "$current" != 'ChangeMe@123!' ]] || set_env SEED_ADMIN_PASSWORD "$(random_password)"
 }
@@ -64,7 +67,7 @@ backup_env() {
 }
 
 validate_no_placeholders() {
-  local keys=(APP_KEY APP_URL DB_DATABASE DB_USERNAME DB_PASSWORD RADIUS_CREDENTIAL_KEY RADIUS_LOCAL_SECRET SEED_ADMIN_EMAIL SEED_ADMIN_PASSWORD)
+  local keys=(APP_KEY APP_URL DB_DATABASE DB_USERNAME DB_PASSWORD RADIUS_CREDENTIAL_KEY RADIUS_LOCAL_SECRET SEED_ADMIN_EMAIL SEED_ADMIN_LOGIN SEED_ADMIN_PASSWORD)
   local key value
   for key in "${keys[@]}"; do
     value="$(read_env "$key")"

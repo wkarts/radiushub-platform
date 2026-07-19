@@ -34,6 +34,8 @@ backup_env
 ensure_runtime_dirs
 ensure_secrets
 
+set_env APP_VERSION "$(cat VERSION)"
+set_env RADIUSHUB_TAG "$(cat VERSION)"
 set_env COMPOSE_PROFILES "$DB_ENGINE"
 set_env DEPLOYMENT_MODE docker
 if [[ "$ENV_FILE" == "$PROJECT_ROOT/"* ]]; then
@@ -63,6 +65,9 @@ if [[ -t 0 && "${NON_INTERACTIVE:-false}" != true ]]; then
   current_email="$(read_env SEED_ADMIN_EMAIL admin@localhost)"
   read -r -p "E-mail do superadministrador [$current_email]: " answer
   [[ -n "$answer" ]] && set_env SEED_ADMIN_EMAIL "$answer"
+  current_login="$(read_env SEED_ADMIN_LOGIN admin)"
+  read -r -p "Login do superadministrador [$current_login]: " answer
+  [[ -n "$answer" ]] && set_env SEED_ADMIN_LOGIN "$answer"
 fi
 
 app_url="$(read_env APP_URL)"
@@ -91,6 +96,7 @@ log "Executando migrations e seed inicial..."
 "${compose[@]}" run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php scripts/check-migration-integrity.php
 "${compose[@]}" run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php artisan migrate --force
 "${compose[@]}" run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php artisan db:seed --force
+"${compose[@]}" run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php artisan radiushub:bootstrap-platform
 "${compose[@]}" run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php artisan radiushub:doctor || true
 
 log "Iniciando todos os serviços..."

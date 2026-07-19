@@ -77,4 +77,37 @@ final class DeploymentPlaygroundContractTest extends TestCase
         self::assertStringContainsString('validate-deployment.sh --http --login', $ci);
     }
 
+    public function test_playground_environment_examples_are_distributed_and_scripts_are_normalized_in_ci(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $gitignore = file_get_contents($root.'/.gitignore');
+        $dockerignore = file_get_contents($root.'/.dockerignore');
+        $ci = file_get_contents($root.'/.github/workflows/ci.yml');
+
+        self::assertFileExists($root.'/.env.playground.example');
+        self::assertFileExists($root.'/.env.cloudpanel.playground.example');
+        self::assertStringContainsString('!/.env.playground.example', $gitignore);
+        self::assertStringContainsString('!/.env.cloudpanel.playground.example', $gitignore);
+        self::assertStringContainsString('!.env.playground.example', $dockerignore);
+        self::assertStringContainsString('!.env.cloudpanel.playground.example', $dockerignore);
+        self::assertStringContainsString('test -f .env.playground.example', $ci);
+        self::assertStringContainsString('test -f .env.cloudpanel.playground.example', $ci);
+        self::assertStringContainsString('chmod +x scripts/*.sh artisan', $ci);
+        self::assertStringContainsString('bash ./scripts/playground.sh', $ci);
+    }
+
+    public function test_cloudpanel_upgrade_reconciles_master_tenant_and_default_company(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $upgrade = file_get_contents($root.'/scripts/upgrade-1.3.5-to-1.4.0.sh');
+        $repair = file_get_contents($root.'/scripts/repair-cloudpanel-bootstrap.sh');
+
+        self::assertStringContainsString('radiushub:bootstrap-platform', $upgrade);
+        self::assertStringContainsString('radiushub:bootstrap-platform', $repair);
+        self::assertStringContainsString('SEED_DEFAULT_TENANT', $repair);
+        self::assertStringContainsString('SEED_DEFAULT_COMPANY', $repair);
+        self::assertStringContainsString('set_env APP_VERSION', $repair);
+        self::assertStringContainsString('REDIS_HOST', $repair);
+    }
+
 }

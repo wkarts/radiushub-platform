@@ -8,7 +8,9 @@ DB_ENGINE="$(read_env COMPOSE_PROFILES)"
 compose=(docker compose --env-file "$ENV_FILE" --profile "$DB_ENGINE")
 "${compose[@]}" config --quiet
 
-"$PROJECT_ROOT/scripts/backup.sh" --docker
+bash "$PROJECT_ROOT/scripts/backup.sh" --docker
+set_env APP_VERSION "$(cat VERSION)"
+set_env RADIUSHUB_TAG "$(cat VERSION)"
 if [[ "${1:-}" == "--build" ]]; then
   "${compose[@]}" build --pull app web freeradius
 else
@@ -20,6 +22,7 @@ fi
 "${compose[@]}" up -d "$DB_ENGINE" redis
 "${compose[@]}" run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php scripts/check-migration-integrity.php
 "${compose[@]}" run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php artisan migrate --force
+"${compose[@]}" run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php artisan radiushub:bootstrap-platform
 "${compose[@]}" run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php artisan asaas:webhooks:sync || warn "Sincronização remota dos webhooks Asaas pendente."
 "${compose[@]}" run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php artisan optimize:clear
 "${compose[@]}" up -d --remove-orphans

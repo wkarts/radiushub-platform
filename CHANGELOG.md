@@ -18,6 +18,21 @@
 - comando independente `scripts/check-planning-compliance.php` para auditoria estática antes do deploy;
 - matriz de conformidade do planejamento e documentação operacional do playground.
 
+### Corrigido
+
+- arquivos `.env.playground.example` e `.env.cloudpanel.playground.example` passam a ser efetivamente versionados e distribuídos;
+- CI valida a presença desses arquivos imediatamente após o checkout;
+- scripts recebem permissão executável no CI e os fluxos críticos são chamados explicitamente por `bash`;
+- instalação e atualização reconciliam o Superadministrador, tenant e empresa padrão;
+- conta principal recebe login explícito por `SEED_ADMIN_LOGIN`;
+- senha de Superadministrador existente é preservada por padrão;
+- login e 2FA de Superadministrador ignoram URL de tenant armazenada anteriormente na sessão;
+- Superadministrador sem tenant é enviado ao painel global em vez de receber 403;
+- administrador de tenant sem empresa é direcionado ao cadastro da empresa;
+- páginas 403/404 evitam ciclos de navegação para uma rota que exige contexto inexistente;
+- adicionado reparo idempotente `scripts/repair-cloudpanel-bootstrap.sh` para instalações CloudPanel anteriores;
+- upgrade/reparo atualizam `APP_VERSION` e removem hostname Docker `redis` de instalações PHP nativas, usando cache/filas em banco como fallback seguro.
+
 ### Segurança
 
 - simulador recusado fora de `PLAYGROUND_MODE=true`;
