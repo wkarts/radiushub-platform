@@ -42,8 +42,8 @@ A inspeção do dump fornecido confirmou usuários Superadministradores ativos, 
 - `php scripts/check-version-integrity.php`;
 - `php scripts/check-migration-integrity.php`;
 - `php scripts/check-planning-compliance.php`;
-- sintaxe de 344 arquivos PHP com `php -l`;
-- sintaxe de todos os scripts Bash e entrypoint Docker com `bash -n`;
+- sintaxe de 345 arquivos PHP com `php -l`;
+- sintaxe de 28 scripts Bash/entrypoints Docker com `bash -n`;
 - parsing dos arquivos JSON e YAML;
 - verificação de que os exemplos de playground não são ignorados pelo Git;
 - geração e conferência do manifesto SHA-256;
@@ -66,3 +66,13 @@ Após o envio do commit corretivo, o workflow executará:
 ## Limitações deste ambiente
 
 Composer, vendor Laravel, Docker Engine, MySQL e PostgreSQL não estão disponíveis localmente. Portanto, PHPUnit e os containers não foram executados aqui. A correção foi validada estaticamente e está preparada para a matriz real do GitHub Actions.
+
+## Revisão 3 — correções baseadas no workflow 80442689140
+
+- `PlaygroundSeederTest`: credenciais de demonstração tornadas determinísticas no próprio teste.
+- `MikrotikSshService`: container passou a injetar explicitamente o simulador, evitando resolução como `null` sem quebrar construções manuais existentes.
+- `install-cloudpanel.sh`: limpeza de cache usa stores efêmeros antes das migrations.
+- Scripts de atualização usam a mesma rotina segura de limpeza.
+- Adicionado `DeploymentRegressionTest`.
+- A rotina `artisan_optimize_clear_safe` foi executada com um PHP simulado, confirmando `CACHE_STORE=array`, `CACHE_LIMITER=array`, `SESSION_DRIVER=array` e `QUEUE_CONNECTION=sync`.
+- O binding do container foi protegido por teste de regressão, mantendo o construtor opcional para compatibilidade.

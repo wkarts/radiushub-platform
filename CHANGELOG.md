@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.0 revisão 3 — 2026-07-19
+
+- Corrige a resolução do simulador MikroTik com binding explícito no container, preservando compatibilidade do construtor.
+- Corrige o teste idempotente do playground para não depender do e-mail de seed do `.env.testing`.
+- Corrige a instalação CloudPanel nativa quando o cache usa banco antes da criação da tabela `cache`.
+- Padroniza a limpeza segura de caches nos instaladores e scripts de atualização.
+- Adiciona testes de regressão para o simulador e para a ordem de bootstrap do CloudPanel.
+
 ## 1.4.0 — 2026-07-19
 
 ### Adicionado

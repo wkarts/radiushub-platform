@@ -21,3 +21,12 @@
 O PR entrega os ambientes Docker/CloudPanel e corrige as falhas encontradas na primeira validação da 1.4.0: arquivos `.env` de playground ausentes após checkout, scripts sem permissão executável e instalação anterior sem Superadministrador/tenant/empresa coerentes.
 
 Consulte a descrição completa apresentada junto ao pacote da entrega.
+
+## Correções da revisão 3
+
+- Corrige falha do teste `PlaygroundSeederTest` causada pelo fallback de `SEED_ADMIN_EMAIL`.
+- Corrige o binding do `MikrotikSimulatorService`, que fazia o container principal encerrar no smoke do playground, preservando o construtor compatível.
+- Corrige `optimize:clear` antes da migration da tabela `cache` no instalador CloudPanel nativo.
+- Adiciona proteção de regressão para os três cenários.
+
+Análise técnica detalhada: `docs/LOG_ANALYSIS_80442689140.md`.

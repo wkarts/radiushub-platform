@@ -45,7 +45,7 @@ chmod 600 "$ENV_FILE"
 log "Instalando dependências e limpando caches antigos..."
 "$COMPOSER_BIN" install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 rm -f bootstrap/cache/config.php bootstrap/cache/events.php bootstrap/cache/routes-*.php
-"$PHP_BIN" artisan optimize:clear || true
+artisan_optimize_clear_safe "$PHP_BIN" || true
 
 log "Validando e reconciliando o banco..."
 "$PHP_BIN" scripts/check-version-integrity.php
@@ -55,7 +55,7 @@ log "Validando e reconciliando o banco..."
 "$PHP_BIN" artisan storage:link --force || true
 
 log "Recriando caches e reiniciando filas..."
-"$PHP_BIN" artisan optimize:clear
+artisan_optimize_clear_safe "$PHP_BIN"
 "$PHP_BIN" artisan config:cache
 "$PHP_BIN" artisan view:cache
 "$PHP_BIN" artisan queue:restart || true

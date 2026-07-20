@@ -2,6 +2,11 @@
 
 namespace App\Providers;
 
+use App\Services\Mikrotik\MikrotikSimulatorService;
+use App\Services\Mikrotik\MikrotikSshService;
+use App\Services\Mikrotik\RouterOsCommandBuilder;
+use App\Services\Security\SensitiveDataSanitizer;
+use App\Services\Security\SshKeyVault;
 use App\Services\Tenancy\CompanyContext;
 use App\Services\Tenancy\TenantContext;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -18,6 +23,12 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(TenantContext::class, fn (): TenantContext => new TenantContext());
         $this->app->singleton(CompanyContext::class, fn (): CompanyContext => new CompanyContext());
+        $this->app->singleton(MikrotikSshService::class, fn ($app): MikrotikSshService => new MikrotikSshService(
+            $app->make(SshKeyVault::class),
+            $app->make(RouterOsCommandBuilder::class),
+            $app->make(SensitiveDataSanitizer::class),
+            $app->make(MikrotikSimulatorService::class),
+        ));
     }
 
     public function boot(): void

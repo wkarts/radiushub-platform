@@ -35,6 +35,24 @@ random_password() {
   printf '%s' "${value:0:24}Aa1!"
 }
 
+
+artisan_optimize_clear_safe() {
+  local php_bin="${1:-php}"
+
+  # Em instalações novas a tabela `cache` ainda não existe. Forçamos stores
+  # efêmeros apenas durante a limpeza dos artefatos de bootstrap, evitando que
+  # `optimize:clear` tente acessar Redis ou banco antes das migrations.
+  rm -f \
+    "$PROJECT_ROOT/bootstrap/cache/config.php" \
+    "$PROJECT_ROOT/bootstrap/cache/events.php" \
+    "$PROJECT_ROOT"/bootstrap/cache/routes-*.php
+
+  CACHE_STORE=array \
+  CACHE_LIMITER=array \
+  SESSION_DRIVER=array \
+  QUEUE_CONNECTION=sync \
+    "$php_bin" artisan optimize:clear
+}
 ensure_runtime_dirs() {
   mkdir -p "$PROJECT_ROOT/storage/framework/cache/data" \
     "$PROJECT_ROOT/storage/framework/sessions" \

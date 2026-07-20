@@ -24,7 +24,7 @@ fi
 "${compose[@]}" run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php artisan migrate --force
 "${compose[@]}" run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php artisan radiushub:bootstrap-platform
 "${compose[@]}" run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php artisan asaas:webhooks:sync || warn "Sincronização remota dos webhooks Asaas pendente."
-"${compose[@]}" run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false app php artisan optimize:clear
+"${compose[@]}" run --rm -e AUTO_MIGRATE=false -e AUTO_SEED=false -e CACHE_STORE=array -e CACHE_LIMITER=array -e SESSION_DRIVER=array -e QUEUE_CONNECTION=sync app php artisan optimize:clear
 "${compose[@]}" up -d --remove-orphans
 ready_url="http://127.0.0.1:$(read_env APP_PORT 8080)/health/ready"
 for attempt in $(seq 1 90); do

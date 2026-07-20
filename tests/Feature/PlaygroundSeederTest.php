@@ -24,6 +24,9 @@ final class PlaygroundSeederTest extends TestCase
     {
         config()->set('playground.enabled', true);
         config()->set('playground.mikrotik_simulator', true);
+        config()->set('playground.seed.admin_email', 'admin@playground.local');
+        config()->set('playground.seed.operator_email', 'operador@playground.local');
+        config()->set('playground.seed.technician_email', 'tecnico@playground.local');
         config()->set('radius.credential_key', 'test-radius-credential-key-with-at-least-32-characters');
 
         $this->seed(PlaygroundSeeder::class);
@@ -43,7 +46,7 @@ final class PlaygroundSeederTest extends TestCase
         $technicianRole = Role::query()->where('slug', 'technician')->firstOrFail();
         $this->assertSame($operatorRole->id, $operator->companies()->whereKey($company->id)->firstOrFail()->pivot->role_id);
         $this->assertSame($technicianRole->id, $technician->companies()->whereKey($company->id)->firstOrFail()->pivot->role_id);
-        $this->assertNotNull(User::query()->where('email', 'admin@playground.local')->firstOrFail()->email_verified_at);
+        $this->assertNotNull(User::query()->where('email', config('playground.seed.admin_email'))->firstOrFail()->email_verified_at);
 
         $device = MikrotikDevice::query()->where('connection_method', 'simulator')->firstOrFail();
         $result = app(MikrotikSshService::class)->test($device);

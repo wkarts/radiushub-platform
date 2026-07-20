@@ -36,7 +36,7 @@ chmod 600 "$ENV_FILE"
 php scripts/check-version-integrity.php
 php scripts/check-migration-integrity.php
 rm -f bootstrap/cache/config.php bootstrap/cache/events.php bootstrap/cache/routes-*.php
-php artisan optimize:clear || true
+artisan_optimize_clear_safe php || true
 
 composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
 
@@ -45,7 +45,7 @@ php scripts/check-migration-integrity.php
 php artisan migrate --force
 php artisan db:seed --force
 php artisan radiushub:bootstrap-platform
-php artisan optimize:clear
+artisan_optimize_clear_safe php
 php artisan config:cache
 php artisan view:cache
 php artisan queue:restart || true

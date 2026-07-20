@@ -220,6 +220,7 @@
 ./docs/DEPLOY_DOCKER.md
 ./docs/FIRST_ACCESS.md
 ./docs/GITHUB.md
+./docs/LOG_ANALYSIS_80442689140.md
 ./docs/MIKROTIK.md
 ./docs/MIKROTIK_SSH.md
 ./docs/MYSQL_POSTGRESQL.md
@@ -533,6 +534,7 @@
 ./tests/Unit/AsaasWebhookEventMapperTest.php
 ./tests/Unit/BaseControllerContractTest.php
 ./tests/Unit/DeploymentPlaygroundContractTest.php
+./tests/Unit/DeploymentRegressionTest.php
 ./tests/Unit/MigrationInventoryIntegrityTest.php
 ./tests/Unit/MigrationSafetyTest.php
 ./tests/Unit/MikrotikSshKeyTest.php
