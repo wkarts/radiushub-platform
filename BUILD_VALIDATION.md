@@ -76,3 +76,15 @@ Composer, vendor Laravel, Docker Engine, MySQL e PostgreSQL não estão disponí
 - Adicionado `DeploymentRegressionTest`.
 - A rotina `artisan_optimize_clear_safe` foi executada com um PHP simulado, confirmando `CACHE_STORE=array`, `CACHE_LIMITER=array`, `SESSION_DRIVER=array` e `QUEUE_CONNECTION=sync`.
 - O binding do container foi protegido por teste de regressão, mantendo o construtor opcional para compatibilidade.
+
+## Revisão 4 — workflow 80445390597
+
+Correções verificadas estaticamente:
+
+- a assinatura de `radiushub:health` não redefine a opção global `--quiet`;
+- o comando usa o nível de verbosidade do output do Symfony;
+- o entrypoint inicia apenas o master `php-fpm` sem `gosu`;
+- worker, scheduler e CLI permanecem executados como `www-data`;
+- a imagem de runtime declara `USER root` para bootstrap e redução controlada de privilégios.
+
+A validação integral dos containers permanece no GitHub Actions, onde o erro original foi observado.

@@ -43,5 +43,9 @@ RUN chmod +x /usr/local/bin/radiushub-entrypoint \
     && mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
 
+# O entrypoint precisa preparar volumes/permissões e o master do FPM precisa
+# abrir os descritores do container antes de reduzir os workers para www-data.
+USER root
+
 ENTRYPOINT ["radiushub-entrypoint"]
 CMD ["php-fpm", "-F"]

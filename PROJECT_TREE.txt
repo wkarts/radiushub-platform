@@ -240,6 +240,7 @@
 ./docs/UPGRADE_1.3.4_TO_1.3.5.md
 ./docs/UPGRADE_1.3.5_TO_1.4.0.md
 ./docs/VOUCHERS.md
+./docs/troubleshooting/workflow-80445390597.md
 ./packages/asaas-sdk-argws/.editorconfig
 ./packages/asaas-sdk-argws/.gitattributes
 ./packages/asaas-sdk-argws/.github/ISSUE_TEMPLATE/auditoria.yml

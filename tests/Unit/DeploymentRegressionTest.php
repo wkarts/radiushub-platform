@@ -17,6 +17,32 @@ final class DeploymentRegressionTest extends TestCase
         self::assertInstanceOf(MikrotikSimulatorService::class, $property->getValue($service));
     }
 
+
+    public function test_health_command_uses_symfony_global_quiet_option_without_redeclaring_it(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $command = (string) file_get_contents($root.'/app/Console/Commands/HealthCheckCommand.php');
+
+        self::assertStringNotContainsString('{--quiet', $command);
+        self::assertStringContainsString('$this->output->isQuiet()', $command);
+
+        $this->artisan('radiushub:health', ['--quiet' => true])
+            ->assertExitCode(0);
+    }
+
+    public function test_php_fpm_master_keeps_required_container_privileges_and_cli_drops_to_www_data(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $entrypoint = (string) file_get_contents($root.'/docker/app/entrypoint.sh');
+        $dockerfile = (string) file_get_contents($root.'/docker/app/Dockerfile');
+
+        self::assertStringContainsString('runtime_command="$(basename "${1:-}")"', $entrypoint);
+        self::assertStringContainsString('if [ "$runtime_command" = "php-fpm" ]; then', $entrypoint);
+        self::assertStringContainsString('exec "$@"', $entrypoint);
+        self::assertStringContainsString('exec gosu www-data "$@"', $entrypoint);
+        self::assertStringContainsString('USER root', $dockerfile);
+    }
+
     public function test_cloudpanel_install_uses_safe_cache_clear_before_migrations(): void
     {
         $root = dirname(__DIR__, 2);

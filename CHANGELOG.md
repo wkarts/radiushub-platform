@@ -1,5 +1,14 @@
 # Changelog
 
+### Revisão 4 — correção do workflow 80445390597
+
+- Corrige a inicialização do PHP-FPM no Docker Playground mantendo o master com os privilégios necessários e os workers como `www-data`.
+- Mantém worker, scheduler e comandos CLI executados por `gosu www-data`.
+- Remove a declaração duplicada da opção global `--quiet` no comando `radiushub:health`.
+- Preserva o healthcheck `radiushub:health --ready --quiet`.
+- Adiciona testes de regressão para o Symfony Console e para o entrypoint Docker.
+- Documenta as duas causas-raiz do workflow 80445390597.
+
 ## 1.4.0 revisão 3 — 2026-07-19
 
 - Corrige a resolução do simulador MikroTik com binding explícito no container, preservando compatibilidade do construtor.

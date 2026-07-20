@@ -9,13 +9,13 @@ use Throwable;
 
 final class HealthCheckCommand extends Command
 {
-    protected $signature = 'radiushub:health {--ready : Verifica dependências necessárias para receber tráfego} {--quiet : Exibe somente erros}';
+    protected $signature = 'radiushub:health {--ready : Verifica dependências necessárias para receber tráfego}';
     protected $description = 'Executa verificações de liveness/readiness para deploy e orquestração.';
 
     public function handle(): int
     {
         if (! $this->option('ready')) {
-            if (! $this->option('quiet')) {
+            if (! $this->output->isQuiet()) {
                 $this->info('RadiusHub está ativo.');
             }
 
@@ -41,7 +41,7 @@ final class HealthCheckCommand extends Command
                     throw new \RuntimeException('retornou estado inválido');
                 }
 
-                if (! $this->option('quiet')) {
+                if (! $this->output->isQuiet()) {
                     $this->line("[OK] {$name}");
                 }
             } catch (Throwable $exception) {

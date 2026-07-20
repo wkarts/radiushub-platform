@@ -303,5 +303,13 @@ jobs:
       - name: Mostrar log em caso de falha
         if: failure()
         run: |
-          cat storage/logs/cloudpanel-smoke-server.log || true
-          tail -n 300 storage/logs/laravel.log || true
+          if [ -f storage/logs/cloudpanel-smoke-server.log ]; then
+            cat storage/logs/cloudpanel-smoke-server.log
+          else
+            echo "Servidor HTTP ainda não havia sido iniciado."
+          fi
+          if [ -f storage/logs/laravel.log ]; then
+            tail -n 300 storage/logs/laravel.log
+          else
+            echo "Laravel não gerou arquivo de log nesta etapa."
+          fi
