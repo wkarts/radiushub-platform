@@ -61,6 +61,8 @@ validate_dialect() {
 
   validation_output="$(freeradius -d "$config_root" -XC 2>&1)" || {
     printf '%s\n' "$validation_output" >&2
+    echo "--- Virtual server renderizado (${dialect}) ---" >&2
+    nl -ba "$config_root/sites-enabled/default" >&2 || true
     rm -rf "$config_root"
     echo "Template FreeRADIUS inválido para ${dialect}." >&2
     return 1

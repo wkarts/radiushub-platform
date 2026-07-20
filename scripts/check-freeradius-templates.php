@@ -145,7 +145,61 @@ foreach (['mysql', 'postgresql'] as $dialect) {
 }
 
 $default = $read('resources/freeradius/common/default');
-foreach (['authorize {', 'accounting {', 'session {', 'post-auth {'] as $section) {
+
+if ($default !== '') {
+    $defaultLines = preg_split('/\R/', $default) ?: [];
+    $braceBalance = 0;
+
+    foreach ($defaultLines as $index => $line) {
+        $braceBalance += substr_count($line, '{') - substr_count($line, '}');
+
+        if ($braceBalance < 0) {
+            $errors[] = sprintf(
+                'resources/freeradius/common/default:%d: fechamento de bloco sem abertura correspondente',
+                $index + 1,
+            );
+            $braceBalance = 0;
+        }
+    }
+
+    if ($braceBalance !== 0) {
+        $errors[] = 'resources/freeradius/common/default: chaves desbalanceadas';
+    }
+
+    if (preg_match_all(
+        '/^\s*(Auth-Type|Post-Auth-Type|Autz-Type|Acct-Type)\s+[A-Za-z0-9_-]+\s*\{[^\r\n]*\S/m',
+        $default,
+        $compactBlocks,
+    )) {
+        foreach ($compactBlocks[0] as $compactBlock) {
+            $errors[] = sprintf(
+                'resources/freeradius/common/default: bloco nomeado deve ser multilinha: %s',
+                trim($compactBlock),
+            );
+        }
+    }
+
+    foreach ([
+        'PAP' => 'pap',
+        'CHAP' => 'chap',
+        'MS-CHAP' => 'mschap',
+    ] as $authType => $module) {
+        $pattern = sprintf(
+            '/^\s*Auth-Type\s+%s\s*\{\s*^\s*%s\s*$\s*^\s*}\s*$/m',
+            preg_quote($authType, '/'),
+            preg_quote($module, '/'),
+        );
+
+        if (! preg_match($pattern, $default)) {
+            $errors[] = sprintf(
+                'resources/freeradius/common/default: bloco Auth-Type %s inválido ou ausente',
+                $authType,
+            );
+        }
+    }
+}
+
+foreach (['authorize {', 'authenticate {', 'preacct {', 'accounting {', 'session {', 'post-auth {'] as $section) {
     if ($default !== '' && ! str_contains($default, $section)) {
         $errors[] = "resources/freeradius/common/default: seção ausente: {$section}";
     }

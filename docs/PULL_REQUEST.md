@@ -1,70 +1,48 @@
-# Pull Request — RadiusHub Platform 1.4.2
+# Pull Request — RadiusHub Platform 1.4.3
 
 ## Branch
 
-`fix/v1.4.2-freeradius-sql-pool-parser`
+`fix/v1.4.3-freeradius-auth-type-parser`
 
 ## Título
 
-`fix(radius): corrigir pool SQL e validar templates no build`
+`fix(radius): corrigir blocos Auth-Type do virtual server FreeRADIUS`
 
 ## Commit
 
-`fix(radius): corrigir sintaxe do pool e executar parser no build`
+`fix(radius): tornar authenticate compatível com o parser FreeRADIUS 3.2`
 
 ## Mensagem de merge
 
-`fix: publicar RadiusHub Platform v1.4.2 com FreeRADIUS validado`
+`fix: publicar RadiusHub Platform v1.4.3 com virtual server validado`
 
 ## Objetivo
 
-Corrigir a falha do FreeRADIUS encontrada no workflow 80453029123 sem reduzir, ignorar ou condicionar as validações obrigatórias do Pull Request.
+Corrigir a falha encontrada no workflow 80457568511 sem remover, ignorar ou condicionar nenhuma validação obrigatória da Pull Request.
 
 ## Causa-raiz
 
-O módulo SQL já era renderizado em `/etc/freeradius/mods-enabled/sql`, mas o bloco `pool` colocava todas as diretivas em uma única linha. O FreeRADIUS 3.2.10 encerrou a análise com `Expected comma after '5'`, deixando o container `unhealthy`.
+A imagem FreeRADIUS passou a executar corretamente o parser real durante o build. Esse parser encontrou no `sites-enabled/default` declarações compactadas como `Auth-Type PAP { pap }` e encerrou com `Parse error after "pap": unexpected token "}"`.
 
 ## Alterações
 
-- incrementa a versão para 1.4.2;
-- corrige os templates SQL MySQL e PostgreSQL;
-- separa cada diretiva do `pool` em sua própria linha;
-- adiciona `max_retries` e `cleanup_interval`;
-- adiciona `scripts/check-freeradius-templates.php`;
-- adiciona `composer radius:check`;
-- executa a validação estrutural nos jobs PHP, MySQL e PostgreSQL;
-- adiciona `docker/freeradius/validate-templates.sh`;
-- executa `freeradius -XC` para os dois dialetos durante o build da imagem;
-- usa `rlm_sql_null` somente no parser de build, sem depender de banco externo;
-- mantém PostgreSQL e MySQL reais no runtime;
-- melhora o diagnóstico do entrypoint com linhas numeradas e segredos mascarados;
-- integra a validação ao instalador nativo;
-- mantém Playground, login, Access-Accept, Accounting-Response e CloudPanel obrigatórios antes do merge;
-- não cria tag, release ou publicação de imagem durante a PR.
+- incrementa a versão para 1.4.3;
+- converte PAP, CHAP e MS-CHAP para blocos multilinha;
+- adiciona validação estrutural do virtual server;
+- rejeita blocos `Auth-Type`, `Post-Auth-Type`, `Autz-Type` e `Acct-Type` compactados;
+- valida balanceamento de chaves;
+- exige os três tipos de autenticação e seus respectivos módulos;
+- adiciona teste unitário específico;
+- mantém `freeradius -XC` para PostgreSQL e MySQL durante o build;
+- mantém builds app, web e FreeRADIUS;
+- mantém Docker Playground, login, Access-Accept, Accounting-Response e accounting persistido;
+- mantém CloudPanel nativo obrigatório antes do merge;
+- não cria tag, release ou publicação de imagens durante a PR.
 
 ## Compatibilidade
 
 - nenhuma migration nova;
 - nenhuma tabela ou coluna alterada;
 - nenhuma rota pública alterada;
-- Laravel/Blade preservado;
-- MySQL e PostgreSQL preservados;
-- Docker e CloudPanel preservados;
-- MikroTik SSH Key preservado;
-- vouchers, financeiro e Asaas preservados.
-
-## Validação obrigatória da PR
-
-1. PHP 8.3 e PHP 8.4;
-2. testes Laravel;
-3. migrations e seeders MySQL 8.4;
-4. migrations e seeders PostgreSQL 17;
-5. verificador estrutural dos templates;
-6. parser FreeRADIUS 3.2.x durante o build;
-7. build das imagens app, web e FreeRADIUS;
-8. Docker Playground;
-9. login HTTP;
-10. Access-Accept;
-11. Accounting-Response;
-12. persistência de accounting;
-13. CloudPanel nativo.
+- Laravel/Blade, MySQL, PostgreSQL, Docker e CloudPanel preservados;
+- MikroTik SSH Key, vouchers, financeiro e Asaas preservados.

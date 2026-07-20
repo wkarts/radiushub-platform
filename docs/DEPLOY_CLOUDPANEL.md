@@ -159,6 +159,8 @@ chmod 600 .env
 
 Para 1.3.5 → 1.4.0, use `scripts/upgrade-1.3.5-to-1.4.0.sh`.
 
+Para 1.4.2 → 1.4.3, use `scripts/upgrade-1.4.2-to-1.4.3.sh`.
+
 Para 1.4.1 → 1.4.2, use `scripts/upgrade-1.4.1-to-1.4.2.sh`.
 
 Para 1.4.0 → 1.4.1, use `scripts/upgrade-1.4.0-to-1.4.1.sh`.

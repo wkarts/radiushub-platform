@@ -224,6 +224,7 @@
 ./docs/LOG_ANALYSIS_80442689140.md
 ./docs/LOG_ANALYSIS_80449231682_80449518778.md
 ./docs/LOG_ANALYSIS_80453029123.md
+./docs/LOG_ANALYSIS_80457568511.md
 ./docs/LOG_ANALYSIS_RUN_47.md
 ./docs/MIKROTIK.md
 ./docs/MIKROTIK_SSH.md
@@ -245,6 +246,7 @@
 ./docs/UPGRADE_1.3.5_TO_1.4.0.md
 ./docs/UPGRADE_1.4.0_TO_1.4.1.md
 ./docs/UPGRADE_1.4.1_TO_1.4.2.md
+./docs/UPGRADE_1.4.2_TO_1.4.3.md
 ./docs/VOUCHERS.md
 ./docs/troubleshooting/workflow-80445390597.md
 ./packages/asaas-sdk-argws/.editorconfig
@@ -515,6 +517,7 @@
 ./scripts/upgrade-1.3.5-to-1.4.0.sh
 ./scripts/upgrade-1.4.0-to-1.4.1.sh
 ./scripts/upgrade-1.4.1-to-1.4.2.sh
+./scripts/upgrade-1.4.2-to-1.4.3.sh
 ./scripts/validate-asaas-sdk.php
 ./scripts/validate-deployment.sh
 ./storage/app/private/.gitignore
@@ -547,6 +550,7 @@
 ./tests/Unit/DeploymentPlaygroundContractTest.php
 ./tests/Unit/DeploymentRegressionTest.php
 ./tests/Unit/FreeRadiusTemplateContractTest.php
+./tests/Unit/FreeRadiusVirtualServerContractTest.php
 ./tests/Unit/MigrationInventoryIntegrityTest.php
 ./tests/Unit/MigrationSafetyTest.php
 ./tests/Unit/MikrotikSshKeyTest.php
