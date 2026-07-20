@@ -1,8 +1,8 @@
-# Implantação nativa no CloudPanel
+# Implantação no CloudPanel
 
-## Site
+## Opção A — PHP nativo
 
-Crie um PHP Site com PHP 8.3/8.4 e document root apontando para:
+Crie um PHP Site com PHP 8.3/8.4 e document root:
 
 ```text
 /home/USUARIO/htdocs/DOMINIO/public
@@ -10,9 +10,9 @@ Crie um PHP Site com PHP 8.3/8.4 e document root apontando para:
 
 Nunca aponte o vhost para a raiz do projeto.
 
-## Banco e cache
+### Banco e cache
 
-CloudPanel nativo recomendado:
+Configuração conservadora sem Redis:
 
 ```env
 DEPLOYMENT_MODE=native
@@ -23,30 +23,50 @@ CACHE_STORE=database
 CACHE_LIMITER=database
 QUEUE_CONNECTION=database
 REDIS_HOST=127.0.0.1
+PLAYGROUND_MODE=false
 ```
 
-Redis pode ser ativado após validar serviço/extensão, mas não use `REDIS_HOST=redis` fora do Docker.
+Redis pode ser ativado depois da validação do serviço e da extensão PHP. O hostname `redis` é exclusivo do Compose.
 
-## Instalação
+### Instalação
 
 ```bash
 cd /home/USUARIO/htdocs/DOMINIO
 cp .env.cloudpanel.example .env
+nano .env
 chmod +x scripts/*.sh
 ./scripts/install-cloudpanel.sh
 ```
 
-O script cria segredos ausentes, instala Composer, migra, faz seed, gera caches e prepara Supervisor/Cron.
+O instalador:
 
-## FreeRADIUS
+- valida PHP e a extensão PDO do banco selecionado;
+- valida a extensão Redis quando cache ou filas usam Redis;
+- preserva e protege `.env`;
+- instala dependências;
+- executa migrations, seed e `radiushub:bootstrap-platform`;
+- cria ou reconcilia Superadministrador, tenant e empresa padrão;
+- gera caches;
+- valida readiness;
+- gera Nginx, Supervisor e Cron.
 
-```bash
-sudo SITE_USER=USUARIO ./scripts/install-freeradius-native.sh
-sudo freeradius -XC
-sudo systemctl restart freeradius
+### Nginx
+
+O snippet nativo é gerado em:
+
+```text
+storage/app/deploy/nginx-native.conf
 ```
 
-## Supervisor
+O arquivo separado para Docker/reverse proxy é:
+
+```text
+storage/app/deploy/nginx-docker-reverse-proxy.conf
+```
+
+Não misture os dois modelos.
+
+### Supervisor
 
 ```bash
 sudo cp storage/app/deploy/supervisor-radiushub.conf /etc/supervisor/conf.d/radiushub.conf
@@ -55,11 +75,72 @@ sudo supervisorctl update
 sudo supervisorctl status
 ```
 
-O worker consome `network,webhooks,default`.
+### Cron
 
-## Cron
+Instale a linha de `storage/app/deploy/cron.txt` no crontab do usuário do site.
 
-Instale a linha gerada em `storage/app/deploy/cron.txt` no crontab do usuário do site.
+### FreeRADIUS nativo
+
+```bash
+sudo SITE_USER=USUARIO ./scripts/install-freeradius-native.sh
+sudo freeradius -XC
+sudo systemctl restart freeradius
+```
+
+Restrinja UDP 1812/1813 aos NAS autorizados.
+
+### Verificação
+
+```bash
+./scripts/validate-deployment.sh --http
+```
+
+## Opção B — Docker + reverse proxy CloudPanel
+
+O instalador integrado mantém a porta web vinculada a `127.0.0.1`, sobe os serviços e gera o snippet de proxy:
+
+```bash
+./scripts/install-cloudpanel-docker.sh \
+  --postgres \
+  --pull-images \
+  --url https://radius.exemplo.com
+```
+
+Para usar MySQL, substitua `--postgres` por `--mysql`. O proxy local será:
+
+```text
+http://127.0.0.1:8080
+```
+
+Cole `storage/app/deploy/nginx-docker-reverse-proxy.conf` em **Custom Nginx Configuration** no CloudPanel.
+
+No primeiro deploy HTTPS, o instalador valida o stack local e adia apenas o login pelo domínio público até o proxy ser aplicado. Depois execute:
+
+```bash
+ENV_FILE=.env.playground ./scripts/validate-deployment.sh \
+  --http --login \
+  --url https://playground-radius.exemplo.com
+```
+
+Para um playground Docker atrás do CloudPanel:
+
+```bash
+./scripts/install-cloudpanel-docker.sh \
+  --playground \
+  --pull-images \
+  --url https://playground-radius.exemplo.com
+```
+
+## Playground
+
+Para um ambiente de testes isolado, consulte `docs/PLAYGROUND.md`.
+
+```bash
+cp .env.cloudpanel.playground.example .env
+nano .env
+./scripts/install-cloudpanel-playground.sh --reuse-env
+./scripts/validate-deployment.sh --http --login
+```
 
 ## Permissões
 
@@ -76,4 +157,16 @@ chmod 600 .env
 ./scripts/update-cloudpanel.sh
 ```
 
-Para migrar 1.2.x para 1.3.0, use `scripts/upgrade-1.2-to-1.3.sh`.
+Para 1.3.5 → 1.4.0, use `scripts/upgrade-1.3.5-to-1.4.0.sh`.
+
+
+## Corrigir instalação antiga sem tenant/empresa
+
+Quando uma instalação anterior autentica e exibe `403 - O usuário não possui tenant ativo vinculado`, atualize os arquivos e execute:
+
+```bash
+chmod +x scripts/*.sh artisan
+bash scripts/repair-cloudpanel-bootstrap.sh
+```
+
+O comando preserva a senha existente, identifica a conta principal por `SEED_ADMIN_EMAIL`/`SEED_ADMIN_LOGIN`, cria ou reutiliza o tenant e a empresa padrão e refaz os vínculos administrativos. Consulte `docs/FIRST_ACCESS.md`.

@@ -1,4 +1,4 @@
-# Arquitetura RadiusHub 1.3
+# Arquitetura RadiusHub 1.4
 
 ## Visão geral
 
@@ -16,40 +16,69 @@ Laravel 13 (Blade)
    └── PostgreSQL/MySQL ← FreeRADIUS → MikroTik Hotspot/PPPoE
 ```
 
-## Responsabilidades
+## Laravel
 
-### Laravel
+É a fonte oficial dos cadastros e regras empresariais. Aplica contextos de tenant/empresa, policies, permissões, auditoria e filas. O protocolo RADIUS permanece no FreeRADIUS.
 
-Fonte oficial dos cadastros e regras empresariais. Não implementa o protocolo RADIUS diretamente.
+## FreeRADIUS
 
-### FreeRADIUS
+Executa AAA em UDP 1812/1813 e lê o mesmo banco. Queries específicas suportam PostgreSQL e MySQL, usuários pré-cadastrados, vouchers, simultaneidade, limites e accounting.
 
-Executa AAA em UDP 1812/1813 e consulta o mesmo banco. O fluxo de autenticação permanece RADIUS; as ações administrativas de desconexão e limite temporário usam SSH Key.
+Ações administrativas de sessão usam SSH Key. CoA/radclient permanece como fallback opcional e desligado por padrão.
 
-### SSH
+## MikroTik SSH
 
-Canal de administração, sincronização e controle de sessões. phpseclib abre a sessão usando chave privada criptografada. Todos os comandos passam por allowlist e têm log separado. O fallback CoA legado permanece desligado por padrão.
+`MikrotikSshService` usa phpseclib, chave privada criptografada e fingerprint do host. Todo comando é criado por `RouterOsCommandBuilder`; não existe terminal arbitrário exposto ao usuário.
 
-### Banco
+O modo playground injeta `MikrotikSimulatorService` apenas em equipamentos com `connection_method=simulator` e com `PLAYGROUND_MODE=true`. A interface de cadastro normal continua criando equipamentos SSH.
 
-Suporta PostgreSQL e MySQL. As credenciais RADIUS são criptografadas em formato legível pelas queries específicas de cada dialeto.
+## Contextos e isolamento
 
-### Redis
+`TenantContext` e `CompanyContext` são definidos por request/job. Traits de model adicionam escopos e valores obrigatórios. `EnsureBoundModelsBelongToContext` impede IDOR por route model binding.
 
-Opcional no CloudPanel nativo; recomendado no Docker para cache e filas. Login usa cache limiter configurável, por padrão banco, evitando indisponibilidade quando Redis falha.
+## Autorização
 
-## Contextos
-
-`TenantContext` e `CompanyContext` existem por request/job. Traits de model aplicam scopes e impedem criação sem contexto.
+- Superadministrador: acesso global auditado;
+- administrador de tenant: vínculo em `tenant_user`;
+- papéis de empresa: `company_user`, `roles`, `permissions`;
+- Policies em recursos sensíveis;
+- middleware `tenant.permission` para módulos CRUD;
+- permissão específica para exportação de credenciais.
 
 ## Filas
 
-- `network`: sincronização SSH;
+- `network`: sincronizações e controle MikroTik;
 - `webhooks`: eventos Asaas;
 - `default`: tarefas gerais.
 
-Jobs de rede usam retry/backoff e restauram tenant/empresa antes de acessar models.
+Workers restauram tenant/empresa antes de consultar models. Scheduler reconcilia vouchers, sessões, faturas e webhooks.
 
-## Compatibilidade
+## Deploy
 
-Campos da antiga API RouterOS permanecem no banco para upgrades sem perda, mas nenhum fluxo ativo os utiliza. A comunicação administrativa oficial é SSH Key.
+### Docker
+
+`app`, `web`, `worker`, `scheduler` e `freeradius` aguardam dependências saudáveis. O `app` aguarda o banco, migra, faz seed opcional e expõe readiness.
+
+### CloudPanel
+
+Pode executar PHP nativo com Supervisor/Cron/FreeRADIUS local ou servir como reverse proxy para o stack Docker.
+
+## Observabilidade
+
+- `/health/live`: processo web ativo;
+- `/health/ready`: banco, cache e storage prontos;
+- `radiushub:health --ready`: readiness via CLI;
+- `radiushub:doctor`: valida configuração, criptografia, SDKs e segurança;
+- logs de conexão/comando MikroTik e auditoria de negócio.
+
+## Playground
+
+O playground semeia um cenário multiempresa e executa smoke tests de:
+
+- login e sessão;
+- endpoints de saúde;
+- simulador MikroTik;
+- RADIUS Access-Accept;
+- accounting e persistência no banco.
+
+Ele não afirma substituir homologação com RouterOS e Asaas reais.

@@ -1,47 +1,80 @@
-# RadiusHub Platform 1.3.5
+# RadiusHub Platform 1.4.0
 
 Plataforma web multi-tenant em PHP/Laravel para administrar empresas, clientes, planos, Hotspot, PPPoE, vouchers, FreeRADIUS, equipamentos MikroTik por **SSH Key**, financeiro e integração Asaas.
 
-## Principais recursos
+## Recursos principais
 
-- Superadministração global, tenants e múltiplas empresas por tenant.
-- RBAC por empresa com papéis, permissões e isolamento por `tenant_id` + `company_id`.
-- Criação de empresa com administrador opcional, senha inicial obrigatoriamente alterável e convite por recuperação de senha.
-- Comunicação administrativa com MikroTik exclusivamente por SSH Key.
-- Fixação de fingerprint do host, chave privada criptografada, comandos em allowlist e auditoria completa.
-- Usuários de rede pré-cadastrados para Hotspot e PPPoE.
-- Vouchers individuais ou em lote, validade fixa ou iniciada no primeiro acesso, limites, impressão, CSV e PDF.
-- FreeRADIUS 3.2 para autenticação, autorização e accounting; desconexões e limites administrativos são aplicados por SSH Key.
-- Planos, perfis de velocidade, sessões, autenticações e consumo.
-- Financeiro, faturas, bloqueio por inadimplência e Asaas SDK ARGWS.
-- Interface Blade responsiva, menu colapsável, CRUDs modais, visualização mobile por cards e tema claro/escuro.
-- Login por e-mail ou login, recuperação de senha, rate limiting, troca obrigatória de senha e TOTP/2FA.
-- Docker Compose com PostgreSQL ou MySQL, CloudPanel nativo, filas, Scheduler, CI, GHCR e releases.
+- Superadministrador global identificado por login/e-mail, tenant e empresa padrão reconciliados no primeiro deploy.
+- RBAC por empresa com papéis, permissões e isolamento por `tenant_id` e `company_id`.
+- Criação de empresa com administrador opcional, senha inicial alterável e auditoria.
+- MikroTik por SSH Key, fingerprint, chave criptografada, allowlist, inventário e histórico.
+- Usuários Hotspot/PPPoE pré-cadastrados e sincronização controlada.
+- Vouchers individuais/em lote, validade fixa/primeiro acesso, limites, impressão, CSV e PDF.
+- FreeRADIUS para autenticação, autorização e accounting em MySQL ou PostgreSQL.
+- Sessões, consumo, disconnect e rate-limit administrativo por SSH.
+- Faturas, pagamentos, reembolso e Asaas SDK ARGWS com webhook secreto por gateway/empresa.
+- Blade responsivo, CRUDs em modal, menu colapsável, cards mobile e dashboards por escopo.
+- Recuperação de senha, rate limiting, troca obrigatória e TOTP/2FA.
+- Docker, CloudPanel nativo, workers, Scheduler, CI, GHCR e releases automáticas.
+- Playground funcional com simulador MikroTik, login, RADIUS e accounting.
 
 ## Requisitos
-
-### CloudPanel nativo
-
-- PHP 8.3 ou 8.4;
-- extensões PDO MySQL ou PostgreSQL, mbstring, OpenSSL, intl, curl, DOM, bcmath e fileinfo;
-- Composer 2;
-- MySQL 8.0+/MariaDB compatível ou PostgreSQL 15+;
-- FreeRADIUS 3.2 para AAA; `radclient` é opcional e usado apenas quando o fallback CoA estiver explicitamente habilitado;
-- Supervisor e Cron.
 
 ### Docker
 
 - Docker Engine;
 - Docker Compose v2;
-- portas UDP 1812/1813 acessíveis apenas pelos NAS autorizados;
-- saída TCP da aplicação até a porta SSH dos MikroTiks.
+- acesso TCP de saída até a porta SSH dos MikroTiks;
+- UDP 1812/1813 liberado somente para NAS autorizados quando usado em rede real.
 
-## Instalação Docker
+### CloudPanel nativo
+
+- PHP 8.3 ou 8.4;
+- extensões PDO MySQL/PostgreSQL, mbstring, OpenSSL, intl, curl, DOM, bcmath e fileinfo;
+- Composer 2;
+- MySQL 8+ ou PostgreSQL 15+;
+- Supervisor e Cron;
+- FreeRADIUS 3.2 para AAA real.
+
+## Playground Docker — início rápido
+
+```bash
+chmod +x scripts/*.sh
+./scripts/playground.sh up
+```
+
+Usando imagens da release:
+
+```bash
+./scripts/playground.sh up --pull-images
+```
+
+O comando gera segredos e valida o stack completo antes de concluir. URL padrão:
+
+```text
+http://127.0.0.1:8080
+```
+
+Comandos úteis:
+
+```bash
+./scripts/playground.sh credentials
+./scripts/playground.sh verify
+./scripts/playground.sh status
+./scripts/playground.sh logs --follow
+./scripts/playground.sh reset
+./scripts/playground.sh down
+```
+
+Detalhes: [docs/PLAYGROUND.md](docs/PLAYGROUND.md).
+
+## Docker de produção/homologação
 
 ### PostgreSQL
 
 ```bash
 cp .env.docker.postgres.example .env
+nano .env
 ./scripts/install-docker.sh --postgres
 ```
 
@@ -49,135 +82,122 @@ cp .env.docker.postgres.example .env
 
 ```bash
 cp .env.docker.mysql.example .env
+nano .env
 ./scripts/install-docker.sh --mysql
 ```
 
-A aplicação é publicada, por padrão, em `127.0.0.1:8080` para uso atrás do reverse proxy do CloudPanel.
+Para usar as imagens do GHCR:
 
-## Instalação nativa no CloudPanel
+```bash
+./scripts/install-docker.sh --postgres --pull-images
+```
+
+A aplicação é vinculada por padrão a `127.0.0.1:8080`, adequada para reverse proxy do CloudPanel.
+
+### Docker atrás do CloudPanel
+
+Produção/homologação com PostgreSQL e imagens do GHCR:
+
+```bash
+./scripts/install-cloudpanel-docker.sh \
+  --postgres \
+  --pull-images \
+  --url https://radius.exemplo.com
+```
+
+Playground Docker isolado atrás do CloudPanel:
+
+```bash
+./scripts/install-cloudpanel-docker.sh \
+  --playground \
+  --pull-images \
+  --url https://playground-radius.exemplo.com
+```
+
+O instalador mantém a porta em `127.0.0.1`, gera `storage/app/deploy/nginx-docker-reverse-proxy.conf` e, no primeiro deploy HTTPS, adia somente o teste de login público até o snippet ser aplicado no CloudPanel. Depois valide:
+
+```bash
+ENV_FILE=.env.playground ./scripts/validate-deployment.sh \
+  --http --login \
+  --url https://playground-radius.exemplo.com
+```
+
+## CloudPanel nativo
 
 ```bash
 cp .env.cloudpanel.example .env
+nano .env
 chmod +x scripts/*.sh
 ./scripts/install-cloudpanel.sh
-sudo ./scripts/install-freeradius-native.sh
+sudo SITE_USER=USUARIO ./scripts/install-freeradius-native.sh
 ```
 
-Configure o document root do site para `public/`, instale o arquivo de Supervisor gerado em `storage/app/deploy/` e adicione o Cron gerado no mesmo diretório.
+Configure o document root para `public/` e instale os arquivos de Supervisor/Cron gerados em `storage/app/deploy/`.
 
-## Atualização 1.2.x para 1.3.1
+### CloudPanel Playground
+
+Use domínio e banco separados:
 
 ```bash
-chmod +x scripts/upgrade-1.2-to-1.3.sh
-./scripts/upgrade-1.2-to-1.3.sh
+cp .env.cloudpanel.playground.example .env
+nano .env
+./scripts/install-cloudpanel-playground.sh --reuse-env
+./scripts/validate-deployment.sh --http --login
 ```
 
-O script preserva `.env`, `APP_KEY`, credenciais criptografadas e banco atual, realiza backup, instala dependências, executa migrations e reinicia workers.
-
-## Atualização 1.3.0 para 1.3.1
+## Saúde e diagnóstico
 
 ```bash
-chmod +x scripts/upgrade-1.3.0-to-1.3.1.sh
-./scripts/upgrade-1.3.0-to-1.3.1.sh
+php scripts/check-planning-compliance.php
+php artisan radiushub:health --ready
+php artisan radiushub:doctor
+./scripts/validate-deployment.sh --http
 ```
 
-A atualização é corretiva e preserva as integrações MikroTik SSH Key, FreeRADIUS e Asaas.
+Endpoints:
+
+```text
+/health/live
+/health/ready
+```
+
+## Atualização 1.3.5 → 1.4.0
+
+```bash
+chmod +x scripts/upgrade-1.3.5-to-1.4.0.sh
+./scripts/upgrade-1.3.5-to-1.4.0.sh
+```
+
+O upgrade não habilita playground na instalação existente, preserva `.env`, `APP_KEY`, banco, chaves SSH, segredos RADIUS e credenciais Asaas e reconcilia o Superadministrador, tenant e empresa padrão. Para reparar diretamente uma instalação antiga com erro 403, execute `bash scripts/repair-cloudpanel-bootstrap.sh`.
 
 ## Documentação
 
+- [Primeiro acesso e recuperação do erro 403](docs/FIRST_ACCESS.md)
+- [Conformidade do planejamento](docs/PLANNING_COMPLIANCE.md)
+- [Playground](docs/PLAYGROUND.md)
 - [Arquitetura](docs/ARCHITECTURE.md)
-- [Análise técnica 1.3](docs/ANALISE_TECNICA_1.3.md)
-- [SSH Key no MikroTik](docs/MIKROTIK_SSH.md)
-- [RADIUS, Hotspot, PPPoE e controle de sessões](docs/MIKROTIK.md)
+- [MikroTik SSH Key](docs/MIKROTIK_SSH.md)
+- [RADIUS, Hotspot e PPPoE](docs/MIKROTIK.md)
 - [Vouchers](docs/VOUCHERS.md)
 - [Multi-tenancy e RBAC](docs/TENANCY_RBAC.md)
 - [Padrão de CRUD e interface](docs/CRUD_UI.md)
 - [Segurança e auditoria](docs/SECURITY_OPERATIONS.md)
 - [Docker](docs/DEPLOY_DOCKER.md)
 - [CloudPanel](docs/DEPLOY_CLOUDPANEL.md)
-- [Asaas SDK ARGWS](docs/ASAAS_SDK_ARGWS.md)
+- [Asaas multiempresa](docs/ASAAS_WEBHOOKS_MULTIEMPRESA.md)
 - [GitHub, GHCR e releases](docs/GITHUB.md)
-- [Upgrade 1.2 → 1.3](docs/UPGRADE_1.2_TO_1.3.md)
-- [Upgrade 1.3.0 → 1.3.1](docs/UPGRADE_1.3.0_TO_1.3.1.md)
-- [Upgrade 1.3.1 → 1.3.2](docs/UPGRADE_1.3.1_TO_1.3.2.md)
-- [Upgrade 1.3.2 → 1.3.3](docs/UPGRADE_1.3.2_TO_1.3.3.md)
-- [Upgrade 1.3.3 → 1.3.4](docs/UPGRADE_1.3.3_TO_1.3.4.md)
-- [Upgrade 1.3.4 → 1.3.5](docs/UPGRADE_1.3.4_TO_1.3.5.md)
-
-## Diagnóstico
-
-```bash
-php artisan radiushub:doctor
-php artisan radiushub:doctor --strict
-```
-
-No Docker:
-
-```bash
-./scripts/doctor.sh
-```
+- [Upgrade 1.3.5 → 1.4.0](docs/UPGRADE_1.3.5_TO_1.4.0.md)
 
 ## Segurança inicial obrigatória
 
-1. Mantenha `APP_KEY` estável e protegida; use `APP_PREVIOUS_KEYS` durante rotação controlada.
+1. Preserve `APP_KEY`; use rotação controlada e `APP_PREVIOUS_KEYS` quando necessário.
 2. Substitua todos os valores `change-this-*`.
 3. Mantenha `MIKROTIK_SSH_ALLOW_PASSWORD_FALLBACK=false`.
-4. Fixe a fingerprint do host SSH de cada equipamento.
-5. Não exponha Redis, banco, SSH ou FreeRADIUS para origens não autorizadas.
-6. Troque a senha inicial do Superadministrador no primeiro acesso e ative 2FA.
+4. Fixe a fingerprint SSH de cada MikroTik real.
+5. Não exponha banco, Redis ou portas RADIUS a origens não autorizadas.
+6. Ative 2FA nas contas administrativas.
+7. Mantenha `PLAYGROUND_MODE=false` em produção.
 
 ## Autoria
 
 WWSoftware's Sistemas / Wallace Kleiton — GitHub `@wkarts`.
-
-## Webhooks Asaas por empresa
-
-A URL do webhook não expõe tenant, slug ou UUID interno. Cada gateway Asaas recebe um token público aleatório de 96 caracteres e mantém também um token independente no cabeçalho `asaas-access-token`.
-
-Após atualização de uma instalação 1.2.x:
-
-```bash
-php artisan migrate --force
-php artisan asaas:webhooks:sync
-```
-
-Consulte `docs/ASAAS_WEBHOOKS_MULTIEMPRESA.md`.
-
-
-## Atualização 1.3.1 → 1.3.2
-
-```bash
-chmod +x scripts/upgrade-1.3.1-to-1.3.2.sh
-./scripts/upgrade-1.3.1-to-1.3.2.sh
-```
-
-A atualização preserva `.env`, `APP_KEY`, dados e integrações existentes. As migrations corrigidas são retomáveis após falhas parciais de DDL no MySQL.
-
-## Atualização 1.3.2 → 1.3.3
-
-```bash
-chmod +x scripts/upgrade-1.3.2-to-1.3.3.sh
-./scripts/upgrade-1.3.2-to-1.3.3.sh
-```
-
-A correção remove a migration duplicada do webhook Asaas, valida que cada sequência de migration é única e preserva dados, tokens, `APP_KEY`, MikroTik, FreeRADIUS e financeiro.
-
-
-## Atualização 1.3.3 → 1.3.4
-
-```bash
-chmod +x scripts/upgrade-1.3.3-to-1.3.4.sh
-./scripts/upgrade-1.3.3-to-1.3.4.sh
-```
-
-A versão 1.3.4 cria automaticamente a tag, a GitHub Release, os pacotes com checksum e as imagens Docker semânticas após o CI aprovado da branch `main`. O processo é idempotente: uma versão já publicada não é duplicada.
-
-## Atualização 1.3.4 → 1.3.5
-
-```bash
-chmod +x scripts/upgrade-1.3.4-to-1.3.5.sh
-./scripts/upgrade-1.3.4-to-1.3.5.sh
-```
-
-A versão 1.3.5 corrige a etapa final da GitHub Release: o job de publicação agora faz checkout do commit versionado, define explicitamente `GH_REPO`, usa `--repo` em todos os comandos `gh release` e verifica a tag, o commit e os quatro artefatos publicados.
-

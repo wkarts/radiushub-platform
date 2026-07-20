@@ -1,5 +1,86 @@
 # Changelog
 
+### Revisão 5 — otimização definitiva da validação de PR e estabilidade do smoke RADIUS
+
+- Restringe o evento `push` do CI à branch `main`, eliminando a execução duplicada `push` + `pull_request` para cada commit do PR.
+- Remove a matriz redundante de build das três imagens Docker do CI de PR.
+- Mantém validação leve de Docker e Compose em todo PR.
+- Executa os smokes completos de Docker Playground e CloudPanel somente na `main`, manualmente ou em PR com o rótulo `full-validation`.
+- Torna `docker-publish.yml` exclusivamente manual; a publicação automática permanece centralizada em `release.yml`.
+- Desabilita recarga automática de clientes NAS no playground para impedir HUP durante o smoke.
+- Troca o monitoramento de `updated_at` por fingerprint apenas dos campos RADIUS relevantes em produção.
+- Reduz o timeout do `radclient` e adiciona preflight da credencial/NAS antes do `Access-Accept`.
+- Adiciona testes de regressão para o pipeline rápido e para a estabilidade do FreeRADIUS.
+
+### Revisão 4 — correção do workflow 80445390597
+
+- Corrige a inicialização do PHP-FPM no Docker Playground mantendo o master com os privilégios necessários e os workers como `www-data`.
+- Mantém worker, scheduler e comandos CLI executados por `gosu www-data`.
+- Remove a declaração duplicada da opção global `--quiet` no comando `radiushub:health`.
+- Preserva o healthcheck `radiushub:health --ready --quiet`.
+- Adiciona testes de regressão para o Symfony Console e para o entrypoint Docker.
+- Documenta as duas causas-raiz do workflow 80445390597.
+
+## 1.4.0 revisão 3 — 2026-07-19
+
+- Corrige a resolução do simulador MikroTik com binding explícito no container, preservando compatibilidade do construtor.
+- Corrige o teste idempotente do playground para não depender do e-mail de seed do `.env.testing`.
+- Corrige a instalação CloudPanel nativa quando o cache usa banco antes da criação da tabela `cache`.
+- Padroniza a limpeza segura de caches nos instaladores e scripts de atualização.
+- Adiciona testes de regressão para o simulador e para a ordem de bootstrap do CloudPanel.
+
+## 1.4.0 — 2026-07-19
+
+### Adicionado
+
+- playground Docker completo com PostgreSQL, Redis, Laravel, Nginx, worker, Scheduler e FreeRADIUS;
+- playground nativo para CloudPanel com domínio/banco isolados;
+- instalador integrado Docker + reverse proxy CloudPanel para produção ou playground;
+- simulador MikroTik limitado ao modo playground;
+- dados demonstrativos multiempresa, acessos, vouchers, financeiro, accounting e auditoria;
+- endpoints `/health/live` e `/health/ready` e comando `radiushub:health`;
+- smoke de login HTTP, RADIUS `Access-Accept` e accounting `Accounting-Response`;
+- verificação pós-deploy por `scripts/validate-deployment.sh`;
+- dependências de saúde entre app, worker, Scheduler, Nginx e FreeRADIUS no Compose;
+- CI de playground Docker e instalação nativa semelhante ao CloudPanel;
+- contrato automatizado de conformidade para rotas, domínio, RBAC, interface e deploy;
+- comando independente `scripts/check-planning-compliance.php` para auditoria estática antes do deploy;
+- matriz de conformidade do planejamento e documentação operacional do playground.
+
+### Corrigido
+
+- arquivos `.env.playground.example` e `.env.cloudpanel.playground.example` passam a ser efetivamente versionados e distribuídos;
+- CI valida a presença desses arquivos imediatamente após o checkout;
+- scripts recebem permissão executável no CI e os fluxos críticos são chamados explicitamente por `bash`;
+- instalação e atualização reconciliam o Superadministrador, tenant e empresa padrão;
+- conta principal recebe login explícito por `SEED_ADMIN_LOGIN`;
+- senha de Superadministrador existente é preservada por padrão;
+- login e 2FA de Superadministrador ignoram URL de tenant armazenada anteriormente na sessão;
+- Superadministrador sem tenant é enviado ao painel global em vez de receber 403;
+- administrador de tenant sem empresa é direcionado ao cadastro da empresa;
+- páginas 403/404 evitam ciclos de navegação para uma rota que exige contexto inexistente;
+- adicionado reparo idempotente `scripts/repair-cloudpanel-bootstrap.sh` para instalações CloudPanel anteriores;
+- upgrade/reparo atualizam `APP_VERSION` e removem hostname Docker `redis` de instalações PHP nativas, usando cache/filas em banco como fallback seguro.
+
+### Segurança
+
+- simulador recusado fora de `PLAYGROUND_MODE=true`;
+- playground bloqueado em `APP_ENV=production` sem autorização explícita;
+- portas do playground vinculadas a `127.0.0.1` por padrão;
+- instalação Docker no CloudPanel valida o stack local antes de exigir a aplicação do proxy HTTPS;
+- playground publicado por domínio desativa `APP_DEBUG` automaticamente;
+- exemplos de produção mantêm todos os recursos de playground desabilitados;
+- exemplos Docker de produção usam URL HTTPS e cookie de sessão seguro por padrão;
+- backfill legado de RBAC promove somente administradores de tenant, sem elevar operadores ou técnicos;
+- instalador CloudPanel valida a extensão PDO específica do banco e a extensão Redis quando ativada;
+- senhas e segredos de playground são gerados localmente e o `.env` recebe modo `600`.
+
+### Compatibilidade
+
+- nenhuma migration nova e nenhuma tabela removida;
+- arquitetura Laravel/Blade, MySQL, PostgreSQL, Docker, CloudPanel, FreeRADIUS, SSH Key, vouchers e Asaas preservados;
+- atualização incremental a partir da versão 1.3.5.
+
 ## 1.3.5 — 2026-07-19
 
 ### Corrigido

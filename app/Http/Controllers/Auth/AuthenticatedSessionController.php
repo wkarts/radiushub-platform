@@ -56,7 +56,13 @@ class AuthenticatedSessionController extends Controller
         $audit->record('auth.login', $user);
 
         if ($user->is_super_admin) {
-            return redirect()->intended(route('platform.dashboard'));
+            $request->session()->forget([
+                'url.intended',
+                config('tenancy.session_key'),
+                config('tenancy.company_session_key'),
+            ]);
+
+            return redirect()->route('platform.dashboard');
         }
 
         return redirect()->intended($user->must_change_password ? route('profile.edit') : route('dashboard'));

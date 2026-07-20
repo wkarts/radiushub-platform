@@ -2,12 +2,12 @@
 
 ## Publicação automática
 
-A partir da versão 1.3.5, não é necessário criar a tag manualmente depois do merge.
+A partir da versão 1.4.0, não é necessário criar a tag manualmente depois do merge.
 
 O fluxo é:
 
 1. o Pull Request é mesclado na `main`;
-2. o workflow `CI` valida PHP 8.3/8.4, MySQL, PostgreSQL e Docker;
+2. o workflow `CI` executa validação rápida no PR e, após o merge na `main`, executa também os smokes completos de Docker e CloudPanel;
 3. somente quando o CI da `main` termina com sucesso, `release.yml` lê o arquivo `VERSION`;
 4. se `vX.Y.Z` ainda não existir, o workflow cria a tag no commit validado;
 5. gera ZIP, TAR.GZ, `SHA256SUMS` e metadados;
@@ -15,6 +15,23 @@ O fluxo é:
 7. cria a GitHub Release.
 
 Quando a release da versão já existe, o workflow termina com sucesso sem duplicá-la.
+
+## Validação de Pull Request
+
+O PR padrão não compila nem publica imagens de release. Ele executa em paralelo:
+
+- testes em PHP 8.3 e 8.4;
+- migrations e seed em PostgreSQL 17;
+- migrations e seed em MySQL 8.4;
+- validação estática dos Dockerfiles, entrypoints e arquivos Compose.
+
+Os smokes completos, que constroem containers e testam FreeRADIUS, são executados somente:
+
+- após push na `main`;
+- por `workflow_dispatch` com `full_validation=true`;
+- em PR explicitamente marcado com o rótulo `full-validation`.
+
+Isso evita duas execuções do CI para o mesmo commit e elimina a construção duplicada das três imagens dentro do PR.
 
 ## Publicar o repositório
 
@@ -32,9 +49,9 @@ Para contingência, ainda é possível enviar a tag imediatamente:
 
 ## Workflows incluídos
 
-- `ci.yml`: lint, testes, migrations MySQL/PostgreSQL, doctor, FreeRADIUS e builds Docker;
-- `docker-publish.yml`: publica imagens de acompanhamento para pushes da `main`;
-- `release.yml`: cria automaticamente tag, release, artefatos e imagens semânticas após o CI aprovado;
+- `ci.yml`: valida PHP 8.3/8.4, MySQL, PostgreSQL e contratos Docker em todo PR; os smokes completos de Docker/CloudPanel rodam na `main`, manualmente ou em PR com o rótulo `full-validation`;
+- `docker-publish.yml`: publicação manual de contingência, sem disparo automático em pushes ou tags;
+- `release.yml`: cria automaticamente tag, release, artefatos e imagens semânticas após o CI completo da `main`;
 - `dependabot.yml`: atualiza Composer, Docker e GitHub Actions.
 
 ## Versão canônica
@@ -65,12 +82,12 @@ O workflow também aceita uma tag `vX.Y.Z` enviada manualmente.
 ## Imagens
 
 ```text
-ghcr.io/wkarts/radiushub-app:1.3.5
-ghcr.io/wkarts/radiushub-web:1.3.5
-ghcr.io/wkarts/radiushub-freeradius:1.3.5
+ghcr.io/wkarts/radiushub-app:1.4.0
+ghcr.io/wkarts/radiushub-web:1.4.0
+ghcr.io/wkarts/radiushub-freeradius:1.4.0
 ```
 
-Também são publicadas as tags `1.3`, `latest` e `sha-*`.
+Também são publicadas as tags `1.4`, `latest` e `sha-*`.
 
 ## Permissões
 
@@ -99,7 +116,7 @@ Depois da publicação, confirma a existência da release e dos quatro artefatos
 
 ### Recuperar a release 1.3.4 que ficou apenas com tag
 
-Depois de incorporar a versão 1.3.5, execute manualmente `Release automática` com:
+Depois de incorporar a versão 1.4.0, execute manualmente `Release automática` com:
 
 - `ref`: `f3cccaf5b3910d366d30599b2037baf7be3d732c`;
 - `rebuild_existing`: `false`.

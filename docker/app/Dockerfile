@@ -26,7 +26,7 @@ RUN composer dump-autoload --no-dev --classmap-authoritative --no-interaction
 FROM php-base AS runtime
 ARG VCS_REF=""
 ARG BUILD_DATE=""
-ARG VERSION="1.3.5"
+ARG VERSION="1.4.0"
 LABEL org.opencontainers.image.title="RadiusHub Platform" \
       org.opencontainers.image.description="Laravel multi-tenant para MikroTik por SSH Key, FreeRADIUS e cobrança Asaas" \
       org.opencontainers.image.version="$VERSION" \
@@ -42,6 +42,10 @@ COPY docker/app/entrypoint.sh /usr/local/bin/radiushub-entrypoint
 RUN chmod +x /usr/local/bin/radiushub-entrypoint \
     && mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
+
+# O entrypoint precisa preparar volumes/permissões e o master do FPM precisa
+# abrir os descritores do container antes de reduzir os workers para www-data.
+USER root
 
 ENTRYPOINT ["radiushub-entrypoint"]
 CMD ["php-fpm", "-F"]

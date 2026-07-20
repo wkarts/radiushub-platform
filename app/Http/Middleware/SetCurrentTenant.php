@@ -30,6 +30,18 @@ class SetCurrentTenant
         $tenant = $requestedId ? (clone $tenants)->whereKey($requestedId)->first() : null;
         $tenant ??= $tenants->first();
 
+        if (! $tenant && $user->is_super_admin) {
+            $request->session()->forget([
+                config('tenancy.session_key'),
+                config('tenancy.company_session_key'),
+            ]);
+
+            return redirect()->route('platform.dashboard')->with(
+                'warning',
+                'Nenhum tenant ativo foi encontrado. Cadastre um tenant ou execute radiushub:bootstrap-platform.',
+            );
+        }
+
         abort_unless($tenant, 403, 'O usuário não possui tenant ativo vinculado.');
 
         $request->session()->put(config('tenancy.session_key'), $tenant->getKey());

@@ -36,6 +36,15 @@ class SetCurrentCompany
         $company = $requestedId ? (clone $base)->whereKey($requestedId)->first() : null;
         $company ??= $base->orderBy('legal_name')->first();
 
+        if (! $company && ($user->is_super_admin || $tenantRole === 'tenant_admin')) {
+            $request->session()->forget(config('tenancy.company_session_key'));
+
+            return redirect()->route('companies.index')->with(
+                'warning',
+                'Nenhuma empresa ativa foi encontrada para este tenant. Cadastre uma empresa ou execute radiushub:bootstrap-platform.',
+            );
+        }
+
         abort_unless($company, 403, 'O usuário não possui empresa ativa vinculada.');
 
         $request->session()->put(config('tenancy.company_session_key'), $company->getKey());

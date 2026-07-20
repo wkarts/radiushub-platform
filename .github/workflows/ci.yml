@@ -1,15 +1,23 @@
 name: CI
 
 on:
-  push:
-    branches: ['**']
   pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      full_validation:
+        description: Executar também os smokes completos de Docker e CloudPanel
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -22,6 +30,11 @@ jobs:
         php: ['8.3', '8.4']
     steps:
       - uses: actions/checkout@v6
+      - name: Validar arquivos distribuídos e normalizar scripts
+        run: |
+          test -f .env.playground.example
+          test -f .env.cloudpanel.playground.example
+          chmod +x scripts/*.sh artisan docker/app/entrypoint.sh docker/freeradius/entrypoint.sh
       - name: Preparar diretórios graváveis do Laravel
         run: mkdir -p bootstrap/cache storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
       - uses: shivammathur/setup-php@v2
@@ -38,6 +51,7 @@ jobs:
       - run: composer install --no-interaction --prefer-dist
       - run: composer migrations:check
       - run: composer version:check
+      - run: composer planning:check
       - name: Preparar ambiente de testes
         run: cp .env.example .env.testing
       - run: composer lint
@@ -76,6 +90,11 @@ jobs:
           --health-interval=5s --health-timeout=5s --health-retries=30
     steps:
       - uses: actions/checkout@v6
+      - name: Validar arquivos distribuídos e normalizar scripts
+        run: |
+          test -f .env.playground.example
+          test -f .env.cloudpanel.playground.example
+          chmod +x scripts/*.sh artisan
       - name: Preparar diretórios graváveis do Laravel
         run: mkdir -p bootstrap/cache storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
       - uses: shivammathur/setup-php@v2
@@ -84,12 +103,18 @@ jobs:
           extensions: pdo_pgsql, pgsql, mbstring, openssl, json, intl, curl, dom, bcmath
           coverage: none
           tools: composer:v2
+      - uses: actions/cache@v5
+        with:
+          path: ~/.cache/composer/files
+          key: composer-${{ runner.os }}-pgsql-${{ hashFiles('composer.json', 'packages/asaas-sdk-argws/composer.json') }}
       - run: composer install --no-interaction --prefer-dist
       - run: composer migrations:check
       - run: composer version:check
+      - run: composer planning:check
       - run: cp .env.docker.postgres.example .env
       - run: php artisan migrate --force
       - run: php artisan db:seed --force
+      - run: php artisan radiushub:bootstrap-platform --json
       - run: php artisan radiushub:doctor
       - run: php artisan radiushub:radius:render --output=storage/app/radius-ci --force
 
@@ -124,6 +149,11 @@ jobs:
           --health-interval=5s --health-timeout=5s --health-retries=30
     steps:
       - uses: actions/checkout@v6
+      - name: Validar arquivos distribuídos e normalizar scripts
+        run: |
+          test -f .env.playground.example
+          test -f .env.cloudpanel.playground.example
+          chmod +x scripts/*.sh artisan
       - name: Preparar diretórios graváveis do Laravel
         run: mkdir -p bootstrap/cache storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
       - uses: shivammathur/setup-php@v2
@@ -132,37 +162,177 @@ jobs:
           extensions: pdo_mysql, mysqli, mbstring, openssl, json, intl, curl, dom, bcmath
           coverage: none
           tools: composer:v2
+      - uses: actions/cache@v5
+        with:
+          path: ~/.cache/composer/files
+          key: composer-${{ runner.os }}-mysql-${{ hashFiles('composer.json', 'packages/asaas-sdk-argws/composer.json') }}
       - run: composer install --no-interaction --prefer-dist
       - run: composer migrations:check
       - run: composer version:check
+      - run: composer planning:check
       - run: cp .env.docker.mysql.example .env
       - run: php artisan migrate --force
       - run: php artisan db:seed --force
+      - run: php artisan radiushub:bootstrap-platform --json
       - run: php artisan radiushub:doctor
       - run: php artisan radiushub:radius:render --output=storage/app/radius-ci --force
 
-  docker-build:
-    name: Docker / ${{ matrix.image }}
+  container-contracts:
+    name: Docker / contratos e Compose
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - image: app
-            dockerfile: docker/app/Dockerfile
-          - image: web
-            dockerfile: docker/nginx/Dockerfile
-          - image: freeradius
-            dockerfile: docker/freeradius/Dockerfile
     steps:
       - uses: actions/checkout@v6
-      - uses: docker/setup-buildx-action@v4
-      - uses: docker/build-push-action@v7
+      - name: Normalizar scripts
+        run: chmod +x scripts/*.sh artisan docker/app/entrypoint.sh docker/freeradius/entrypoint.sh
+      - name: Validar scripts de containers
+        run: |
+          bash -n docker/app/entrypoint.sh
+          bash -n docker/freeradius/entrypoint.sh
+          bash -n scripts/playground.sh
+          bash -n scripts/smoke-radius.sh
+          bash -n scripts/install-cloudpanel-docker.sh
+      - name: Validar Compose PostgreSQL
+        run: |
+          cp .env.docker.postgres.example .env
+          RADIUSHUB_ENV_FILE=.env docker compose --profile postgres config --quiet
+      - name: Validar Compose MySQL
+        run: |
+          cp .env.docker.mysql.example .env
+          RADIUSHUB_ENV_FILE=.env docker compose --profile mysql config --quiet
+      - name: Validar Compose Playground
+        run: |
+          cp .env.playground.example .env.playground
+          RADIUSHUB_ENV_FILE=.env.playground docker compose --env-file .env.playground -p radiushub-playground -f docker-compose.yml -f docker-compose.playground.yml --profile postgres config --quiet
+
+  docker-playground-smoke:
+    name: Docker Playground / smoke completo
+    if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && inputs.full_validation) ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-validation'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validar arquivos distribuídos e normalizar scripts
+        run: |
+          test -f .env.playground.example
+          test -f .env.cloudpanel.playground.example
+          chmod +x scripts/*.sh artisan docker/app/entrypoint.sh docker/freeradius/entrypoint.sh
+      - name: Preparar playground
+        run: |
+          cp .env.playground.example .env.playground
+          sed -i 's|^APP_KEY=.*|APP_KEY=base64:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=|' .env.playground
+          sed -i 's|^DB_PASSWORD=.*|DB_PASSWORD=radiushub-playground-ci|' .env.playground
+          sed -i 's|^RADIUS_CREDENTIAL_KEY=.*|RADIUS_CREDENTIAL_KEY=ci-radius-credential-key-long-enough-123456|' .env.playground
+          sed -i 's|^RADIUS_LOCAL_SECRET=.*|RADIUS_LOCAL_SECRET=ci-local-radius-secret-long-enough|' .env.playground
+          sed -i 's|^SEED_ADMIN_PASSWORD=.*|SEED_ADMIN_PASSWORD=PlaygroundCI@123!|' .env.playground
+          sed -i 's|^PLAYGROUND_ADMIN_PASSWORD=.*|PLAYGROUND_ADMIN_PASSWORD=PlaygroundCI@123!|' .env.playground
+          chmod 600 .env.playground
+      - name: Iniciar playground Docker pelo fluxo CloudPanel
+        run: bash ./scripts/install-cloudpanel-docker.sh --playground --url http://127.0.0.1:8080
+      - name: Validar proxy gerado e autenticação
+        env:
+          ENV_FILE: .env.playground
+        run: |
+          test -s storage/app/deploy/nginx-docker-reverse-proxy.conf
+          grep -q 'proxy_pass http://127.0.0.1:8080' storage/app/deploy/nginx-docker-reverse-proxy.conf
+          bash ./scripts/validate-deployment.sh --http --login --url http://127.0.0.1:8080
+      - name: Estado final
+        if: always()
+        run: |
+          ENV_FILE=.env.playground bash ./scripts/playground.sh status || true
+          ENV_FILE=.env.playground bash ./scripts/playground.sh logs || true
+      - name: Encerrar playground
+        if: always()
+        run: ENV_FILE=.env.playground bash ./scripts/playground.sh down || true
+
+  cloudpanel-native-smoke:
+    name: CloudPanel nativo / smoke de aplicação
+    if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && inputs.full_validation) ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-validation'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: radiushub_cloudpanel
+          POSTGRES_USER: radiushub
+          POSTGRES_PASSWORD: radiushub-cloudpanel-ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd="pg_isready -U radiushub -d radiushub_cloudpanel"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validar arquivos distribuídos e normalizar scripts
+        run: |
+          test -f .env.playground.example
+          test -f .env.cloudpanel.playground.example
+          chmod +x scripts/*.sh artisan
+      - uses: shivammathur/setup-php@v2
         with:
-          context: .
-          file: ${{ matrix.dockerfile }}
-          push: false
-          load: false
-          tags: radiushub-${{ matrix.image }}:ci
-          cache-from: type=gha,scope=ci-${{ matrix.image }}
-          cache-to: type=gha,mode=max,scope=ci-${{ matrix.image }}
+          php-version: '8.4'
+          extensions: pdo_pgsql, pgsql, mbstring, openssl, json, intl, curl, dom, bcmath, fileinfo
+          coverage: none
+          tools: composer:v2
+      - uses: actions/cache@v5
+        with:
+          path: ~/.cache/composer/files
+          key: composer-${{ runner.os }}-cloudpanel-${{ hashFiles('composer.json', 'packages/asaas-sdk-argws/composer.json') }}
+      - name: Preparar .env nativo de playground
+        run: |
+          cp .env.cloudpanel.playground.example .env
+          sed -i 's|^APP_KEY=.*|APP_KEY=base64:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=|' .env
+          sed -i 's|^APP_URL=.*|APP_URL=http://127.0.0.1:8090|' .env
+          sed -i 's|^DB_CONNECTION=.*|DB_CONNECTION=pgsql|' .env
+          sed -i 's|^DB_HOST=.*|DB_HOST=127.0.0.1|' .env
+          sed -i 's|^DB_PORT=.*|DB_PORT=5432|' .env
+          sed -i 's|^DB_DATABASE=.*|DB_DATABASE=radiushub_cloudpanel|' .env
+          sed -i 's|^DB_USERNAME=.*|DB_USERNAME=radiushub|' .env
+          sed -i 's|^DB_PASSWORD=.*|DB_PASSWORD=radiushub-cloudpanel-ci|' .env
+          sed -i 's|^SESSION_SECURE_COOKIE=.*|SESSION_SECURE_COOKIE=false|' .env
+          sed -i 's|^RADIUS_CREDENTIAL_KEY=.*|RADIUS_CREDENTIAL_KEY=ci-radius-credential-key-long-enough-123456|' .env
+          sed -i 's|^RADIUS_LOCAL_SECRET=.*|RADIUS_LOCAL_SECRET=ci-local-radius-secret-long-enough|' .env
+          sed -i 's|^SEED_ADMIN_PASSWORD=.*|SEED_ADMIN_PASSWORD=CloudPanelCI@123!|' .env
+          sed -i 's|^PLAYGROUND_ADMIN_PASSWORD=.*|PLAYGROUND_ADMIN_PASSWORD=CloudPanelCI@123!|' .env
+          chmod 600 .env
+      - name: Instalar como CloudPanel nativo
+        run: bash ./scripts/install-cloudpanel-playground.sh --reuse-env
+      - name: Iniciar servidor de smoke
+        run: |
+          php -S 127.0.0.1:8090 -t public > storage/logs/cloudpanel-smoke-server.log 2>&1 &
+          echo $! > /tmp/radiushub-server.pid
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8090/health/ready && exit 0; sleep 1; done
+          cat storage/logs/cloudpanel-smoke-server.log
+          exit 1
+      - name: Validar HTTP e autenticação
+        env:
+          APP_URL: http://127.0.0.1:8090
+          PLAYGROUND_ADMIN_EMAIL: admin@playground.local
+          PLAYGROUND_ADMIN_PASSWORD: CloudPanelCI@123!
+        run: bash ./scripts/smoke-http.sh
+      - name: Validar artefatos do CloudPanel
+        run: |
+          test -s storage/app/deploy/supervisor-radiushub.conf
+          test -s storage/app/deploy/cron.txt
+          test -s storage/app/deploy/nginx-native.conf
+          test -s storage/app/deploy/nginx-docker-reverse-proxy.conf
+          php artisan radiushub:health --ready
+          php artisan radiushub:playground:verify
+      - name: Mostrar log em caso de falha
+        if: failure()
+        run: |
+          if [ -f storage/logs/cloudpanel-smoke-server.log ]; then
+            cat storage/logs/cloudpanel-smoke-server.log
+          else
+            echo "Servidor HTTP ainda não havia sido iniciado."
+          fi
+          if [ -f storage/logs/laravel.log ]; then
+            tail -n 300 storage/logs/laravel.log
+          else
+            echo "Laravel não gerou arquivo de log nesta etapa."
+          fi

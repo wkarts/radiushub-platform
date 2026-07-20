@@ -35,6 +35,24 @@ random_password() {
   printf '%s' "${value:0:24}Aa1!"
 }
 
+
+artisan_optimize_clear_safe() {
+  local php_bin="${1:-php}"
+
+  # Em instalações novas a tabela `cache` ainda não existe. Forçamos stores
+  # efêmeros apenas durante a limpeza dos artefatos de bootstrap, evitando que
+  # `optimize:clear` tente acessar Redis ou banco antes das migrations.
+  rm -f \
+    "$PROJECT_ROOT/bootstrap/cache/config.php" \
+    "$PROJECT_ROOT/bootstrap/cache/events.php" \
+    "$PROJECT_ROOT"/bootstrap/cache/routes-*.php
+
+  CACHE_STORE=array \
+  CACHE_LIMITER=array \
+  SESSION_DRIVER=array \
+  QUEUE_CONNECTION=sync \
+    "$php_bin" artisan optimize:clear
+}
 ensure_runtime_dirs() {
   mkdir -p "$PROJECT_ROOT/storage/framework/cache/data" \
     "$PROJECT_ROOT/storage/framework/sessions" \
@@ -54,6 +72,9 @@ ensure_secrets() {
   current="$(read_env RADIUS_LOCAL_SECRET)"
   [[ -n "$current" && "$current" != change-this* ]] || set_env RADIUS_LOCAL_SECRET "$(random_base64 32)"
 
+  current="$(read_env SEED_ADMIN_LOGIN)"
+  [[ -n "$current" ]] || set_env SEED_ADMIN_LOGIN admin
+
   current="$(read_env SEED_ADMIN_PASSWORD)"
   [[ -n "$current" && "$current" != 'ChangeMe@123!' ]] || set_env SEED_ADMIN_PASSWORD "$(random_password)"
 }
@@ -64,11 +85,17 @@ backup_env() {
 }
 
 validate_no_placeholders() {
-  local keys=(APP_KEY DB_DATABASE DB_USERNAME DB_PASSWORD RADIUS_CREDENTIAL_KEY RADIUS_LOCAL_SECRET SEED_ADMIN_EMAIL SEED_ADMIN_PASSWORD)
+  local keys=(APP_KEY APP_URL DB_DATABASE DB_USERNAME DB_PASSWORD RADIUS_CREDENTIAL_KEY RADIUS_LOCAL_SECRET SEED_ADMIN_EMAIL SEED_ADMIN_LOGIN SEED_ADMIN_PASSWORD)
   local key value
   for key in "${keys[@]}"; do
     value="$(read_env "$key")"
     [[ -n "$value" ]] || die "Variável obrigatória vazia: $key"
     [[ "$value" != change-this* ]] || die "Substitua o valor provisório de $key no arquivo .env."
   done
+
+  local app_url
+  app_url="$(read_env APP_URL)"
+  if [[ "$app_url" == *"example.com"* ]]; then
+    die "Substitua APP_URL pelo domínio ou endereço real da instalação."
+  fi
 }

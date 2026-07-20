@@ -59,8 +59,21 @@ if [ "${AUTO_SEED:-false}" = "true" ]; then
   as_www_data php artisan db:seed --force
 fi
 
+if [ "${PLAYGROUND_MODE:-false}" = "true" ] && [ "${AUTO_SEED:-false}" = "true" ]; then
+  as_www_data php artisan radiushub:playground:verify --json
+fi
+
 as_www_data php artisan storage:link --force >/dev/null 2>&1 || true
 as_www_data php artisan config:cache
 as_www_data php artisan view:cache
+
+# O processo mestre do PHP-FPM deve iniciar como root para abrir os descritores
+# de log do container e então reduzir os workers para www-data, conforme a
+# configuração oficial da imagem php:fpm. Worker, scheduler e comandos CLI
+# continuam sendo executados diretamente como www-data.
+runtime_command="$(basename "${1:-}")"
+if [ "$runtime_command" = "php-fpm" ]; then
+  exec "$@"
+fi
 
 exec gosu www-data "$@"
