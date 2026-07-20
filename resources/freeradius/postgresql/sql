@@ -11,6 +11,17 @@ sql {
     postauth_table = radius_auth_attempts
     read_clients = yes
     client_table = mikrotik_devices
-    pool { start = 5 min = 3 max = 20 spare = 5 uses = 0 retry_delay = 30 lifetime = 0 idle_timeout = 60 }
+    pool {
+        start = 5
+        min = 3
+        max = 20
+        spare = 5
+        uses = 0
+        max_retries = 5
+        retry_delay = 1
+        lifetime = 0
+        cleanup_interval = 30
+        idle_timeout = 60
+    }
     $INCLUDE ${modconfdir}/sql/main/${dialect}/queries.conf
 }

@@ -1,7 +1,7 @@
 FROM nginx:1.27-alpine
 ARG VCS_REF=""
 ARG BUILD_DATE=""
-ARG VERSION="1.4.1"
+ARG VERSION="1.4.2"
 LABEL org.opencontainers.image.title="RadiusHub Web" \
       org.opencontainers.image.version="$VERSION" \
       org.opencontainers.image.revision="$VCS_REF" \

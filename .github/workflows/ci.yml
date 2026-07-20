@@ -28,7 +28,7 @@ jobs:
         run: |
           test -f .env.playground.example
           test -f .env.cloudpanel.playground.example
-          chmod +x scripts/*.sh artisan docker/app/entrypoint.sh docker/freeradius/entrypoint.sh
+          chmod +x scripts/*.sh artisan docker/app/entrypoint.sh docker/freeradius/entrypoint.sh docker/freeradius/validate-templates.sh
       - name: Preparar diretórios graváveis do Laravel
         run: mkdir -p bootstrap/cache storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
       - uses: shivammathur/setup-php@v2
@@ -46,6 +46,7 @@ jobs:
       - run: composer migrations:check
       - run: composer version:check
       - run: composer planning:check
+      - run: composer radius:check
       - name: Preparar ambiente de testes
         run: cp .env.example .env.testing
       - run: composer lint
@@ -105,6 +106,7 @@ jobs:
       - run: composer migrations:check
       - run: composer version:check
       - run: composer planning:check
+      - run: composer radius:check
       - run: cp .env.docker.postgres.example .env
       - run: php artisan migrate --force
       - run: php artisan db:seed --force
@@ -164,6 +166,7 @@ jobs:
       - run: composer migrations:check
       - run: composer version:check
       - run: composer planning:check
+      - run: composer radius:check
       - run: cp .env.docker.mysql.example .env
       - run: php artisan migrate --force
       - run: php artisan db:seed --force
@@ -177,14 +180,17 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Normalizar scripts
-        run: chmod +x scripts/*.sh artisan docker/app/entrypoint.sh docker/freeradius/entrypoint.sh
+        run: chmod +x scripts/*.sh artisan docker/app/entrypoint.sh docker/freeradius/entrypoint.sh docker/freeradius/validate-templates.sh
       - name: Validar scripts de containers
         run: |
           bash -n docker/app/entrypoint.sh
           bash -n docker/freeradius/entrypoint.sh
+          bash -n docker/freeradius/validate-templates.sh
           bash -n scripts/playground.sh
           bash -n scripts/smoke-radius.sh
           bash -n scripts/install-cloudpanel-docker.sh
+          ! grep -Eq '^[[:space:]]*pool[[:space:]]*\{[^[:cntrl:]]+\}' resources/freeradius/mysql/sql
+          ! grep -Eq '^[[:space:]]*pool[[:space:]]*\{[^[:cntrl:]]+\}' resources/freeradius/postgresql/sql
       - name: Validar Compose PostgreSQL
         run: |
           cp .env.docker.postgres.example .env
@@ -209,7 +215,7 @@ jobs:
         run: |
           test -f .env.playground.example
           test -f .env.cloudpanel.playground.example
-          chmod +x scripts/*.sh artisan docker/app/entrypoint.sh docker/freeradius/entrypoint.sh
+          chmod +x scripts/*.sh artisan docker/app/entrypoint.sh docker/freeradius/entrypoint.sh docker/freeradius/validate-templates.sh
       - name: Preparar playground
         run: |
           cp .env.playground.example .env.playground

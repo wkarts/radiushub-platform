@@ -128,6 +128,20 @@ watch_radius_clients() {
   done
 }
 
+
+print_sanitized_sql_config() {
+  local sql_file="$CONFIG_ROOT/mods-enabled/sql"
+
+  [ -f "$sql_file" ] || return 0
+
+  echo "Configuração SQL renderizada (segredos mascarados):" >&2
+  sed -E \
+    -e 's/^([[:space:]]*password[[:space:]]*=[[:space:]]*).*/\1<<< secret >>>/' \
+    -e 's/^([[:space:]]*secret[[:space:]]*=[[:space:]]*).*/\1<<< secret >>>/' \
+    "$sql_file" \
+    | nl -ba >&2
+}
+
 [ -n "${RADIUS_CREDENTIAL_KEY:-}" ] || { echo "RADIUS_CREDENTIAL_KEY ausente." >&2; exit 1; }
 wait_for_database
 render "/opt/radiushub-radius/templates/$DIALECT/sql" "$CONFIG_ROOT/mods-enabled/sql"
@@ -137,6 +151,7 @@ render /opt/radiushub-radius/templates/common/default "$CONFIG_ROOT/sites-enable
 
 validation_output="$(freeradius -XC 2>&1)" || {
   printf '%s\n' "$validation_output" >&2
+  print_sanitized_sql_config
   echo "A configuração gerada do FreeRADIUS é inválida." >&2
   exit 1
 }

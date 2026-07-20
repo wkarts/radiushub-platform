@@ -1,4 +1,4 @@
-# RadiusHub Platform 1.4.1
+# RadiusHub Platform 1.4.2
 
 Plataforma web multi-tenant em PHP/Laravel para administrar empresas, clientes, planos, Hotspot, PPPoE, vouchers, FreeRADIUS, equipamentos MikroTik por **SSH Key**, financeiro e integração Asaas.
 
@@ -161,6 +161,15 @@ Endpoints:
 /health/ready
 ```
 
+## Atualização 1.4.1 → 1.4.2
+
+```bash
+chmod +x scripts/upgrade-1.4.1-to-1.4.2.sh
+./scripts/upgrade-1.4.1-to-1.4.2.sh
+```
+
+A atualização corrige o parser SQL do FreeRADIUS, preserva `.env`, `APP_KEY`, banco, `storage/`, chaves SSH, segredos RADIUS e credenciais Asaas. Não há migration nova.
+
 ## Atualização 1.4.0 → 1.4.1
 
 ```bash
@@ -186,6 +195,7 @@ A atualização preserva `.env`, `APP_KEY`, banco, `storage/`, chaves SSH, segre
 - [CloudPanel](docs/DEPLOY_CLOUDPANEL.md)
 - [Asaas multiempresa](docs/ASAAS_WEBHOOKS_MULTIEMPRESA.md)
 - [GitHub, GHCR e releases](docs/GITHUB.md)
+- [Upgrade 1.4.1 → 1.4.2](docs/UPGRADE_1.4.1_TO_1.4.2.md)
 - [Upgrade 1.4.0 → 1.4.1](docs/UPGRADE_1.4.0_TO_1.4.1.md)
 
 ## Segurança inicial obrigatória

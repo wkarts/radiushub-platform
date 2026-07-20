@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.4.2 — 2026-07-20
+
+### Corrigido
+
+- Sintaxe inválida do bloco `pool` nos módulos SQL MySQL e PostgreSQL do FreeRADIUS.
+- Falha `Expected comma after '5'` durante `freeradius -XC`.
+- Container FreeRADIUS entrando em estado `unhealthy` antes do smoke.
+
+### Proteções
+
+- Verificador estrutural independente para templates FreeRADIUS.
+- Parser real do FreeRADIUS executado para MySQL e PostgreSQL durante o build da imagem.
+- Diagnóstico do SQL renderizado com linhas numeradas e credenciais mascaradas.
+- Testes de regressão para impedir retorno do bloco `pool` em linha única.
+- Validação integral do Pull Request preservada.
+
 ## 1.4.1 — 2026-07-20
 
 ### Corrigido

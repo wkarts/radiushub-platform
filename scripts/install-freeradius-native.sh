@@ -51,6 +51,8 @@ detect_freeradius_config_root() {
 CONFIG_ROOT="$(detect_freeradius_config_root)"
 log "Configuração ativa do FreeRADIUS: $CONFIG_ROOT"
 
+runuser -u "$SITE_USER" -- "$PHP_BIN" scripts/check-freeradius-templates.php
+
 rm -f bootstrap/cache/config.php
 runuser -u "$SITE_USER" -- "$PHP_BIN" artisan config:clear
 runuser -u "$SITE_USER" -- "$PHP_BIN" artisan radiushub:radius:render --output=storage/app/freeradius-generated --force

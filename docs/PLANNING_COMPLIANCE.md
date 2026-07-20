@@ -1,6 +1,6 @@
-# Conformidade do planejamento — RadiusHub Platform 1.4.1
+# Conformidade do planejamento — RadiusHub Platform 1.4.2
 
-Esta matriz relaciona o planejamento funcional com a implementação preservada e evoluída na versão 1.4.1.
+Esta matriz relaciona o planejamento funcional com a implementação preservada e evoluída na versão 1.4.2.
 
 ## Legenda
 

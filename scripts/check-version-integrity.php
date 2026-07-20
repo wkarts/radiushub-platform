@@ -78,7 +78,10 @@ $checks = [
     'config/app.php' => ["env('APP_VERSION', '{$version}')"],
     'docker/app/Dockerfile' => ["ARG VERSION=\"{$version}\""],
     'docker/nginx/Dockerfile' => ["ARG VERSION=\"{$version}\""],
-    'docker/freeradius/Dockerfile' => ["ARG VERSION=\"{$version}\""],
+    'docker/freeradius/Dockerfile' => [
+        "ARG VERSION=\"{$version}\"",
+        'radiushub-radius-validate-templates',
+    ],
     'docker-compose.yml' => [
         "radiushub-app:\${RADIUSHUB_TAG:-{$version}}",
         "radiushub-web:\${RADIUSHUB_TAG:-{$version}}",
@@ -122,12 +125,37 @@ $checks = [
         'Construir imagem FreeRADIUS',
         'Docker Playground / smoke completo',
         'CloudPanel nativo / smoke de aplicação',
+        'composer radius:check',
     ],
     'docker/freeradius/entrypoint.sh' => [
         'detect_config_root',
         'radiusd.conf',
         'Ignoring "sql"',
         'Loaded module rlm_sql',
+    ],
+    'docker/freeradius/validate-templates.sh' => [
+        'freeradius -d "$config_root" -XC',
+        'validate_dialect "$base_root" postgresql 5432',
+        'validate_dialect "$base_root" mysql 3306',
+        'rlm_sql_null',
+    ],
+    'resources/freeradius/mysql/sql' => [
+        "pool {\n",
+        'max_retries = 5',
+        'cleanup_interval = 30',
+    ],
+    'resources/freeradius/postgresql/sql' => [
+        "pool {\n",
+        'max_retries = 5',
+        'cleanup_interval = 30',
+    ],
+    'scripts/check-freeradius-templates.php' => [
+        'Templates FreeRADIUS MySQL/PostgreSQL estruturalmente válidos.',
+        'o bloco pool deve começar em uma linha própria',
+    ],
+    'composer.json' => [
+        '"radius:check"',
+        'scripts/check-freeradius-templates.php',
     ],
     'scripts/install-freeradius-native.sh' => [
         'detect_freeradius_config_root',
@@ -142,6 +170,16 @@ $checks = [
     'docs/UPGRADE_1.4.0_TO_1.4.1.md' => [
         '1.4.1',
         'Ignoring "sql"',
+    ],
+    'scripts/upgrade-1.4.1-to-1.4.2.sh' => [
+        'APP_VERSION',
+        'check-freeradius-templates.php',
+        'radiushub:health --ready',
+    ],
+    'docs/UPGRADE_1.4.1_TO_1.4.2.md' => [
+        '1.4.2',
+        "Expected comma after '5'",
+        'freeradius -XC',
     ],
     '.github/workflows/release.yml' => [
         "workflow_run:",
@@ -177,6 +215,14 @@ foreach (['full-validation', 'github.event.pull_request.labels', 'inputs.full_va
 $radiusEntrypoint = $read('docker/freeradius/entrypoint.sh');
 if ($radiusEntrypoint !== '' && str_contains($radiusEntrypoint, 'FREERADIUS_CONFIG_ROOT:-/etc/freeradius/3.0')) {
     $errors[] = 'docker/freeradius/entrypoint.sh: diretório FreeRADIUS não pode permanecer fixo em /etc/freeradius/3.0';
+}
+
+foreach (['mysql', 'postgresql'] as $dialect) {
+    $sqlTemplate = $read("resources/freeradius/{$dialect}/sql");
+
+    if ($sqlTemplate !== '' && preg_match('/^\s*pool\s*\{[^\r\n]*\S/m', $sqlTemplate)) {
+        $errors[] = "resources/freeradius/{$dialect}/sql: bloco pool não pode conter diretivas em linha única";
+    }
 }
 
 if ($errors !== []) {
