@@ -88,3 +88,20 @@ Correções verificadas estaticamente:
 - a imagem de runtime declara `USER root` para bootstrap e redução controlada de privilégios.
 
 A validação integral dos containers permanece no GitHub Actions, onde o erro original foi observado.
+## Revisão 5 — otimização de PR e smoke RADIUS
+
+A validação foi reorganizada para evitar trabalho de release durante Pull Requests:
+
+- `push` do CI limitado à `main`;
+- PR executa somente qualidade, MySQL, PostgreSQL e contratos Docker/Compose;
+- smokes completos condicionados à `main`, execução manual ou rótulo `full-validation`;
+- removida a construção redundante das imagens `app`, `web` e `freeradius`;
+- `docker-publish.yml` não reage mais a push/tag automaticamente.
+
+A falha `Access-Accept` foi tratada com:
+
+- desativação da recarga NAS no playground;
+- fingerprint estável dos campos RADIUS no ambiente produtivo;
+- preflight da credencial criptografada e do NAS;
+- `radclient` com timeout e repetição controlados;
+- diagnóstico ampliado em caso de falha.

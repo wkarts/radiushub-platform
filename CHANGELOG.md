@@ -1,5 +1,17 @@
 # Changelog
 
+### Revisão 5 — otimização definitiva da validação de PR e estabilidade do smoke RADIUS
+
+- Restringe o evento `push` do CI à branch `main`, eliminando a execução duplicada `push` + `pull_request` para cada commit do PR.
+- Remove a matriz redundante de build das três imagens Docker do CI de PR.
+- Mantém validação leve de Docker e Compose em todo PR.
+- Executa os smokes completos de Docker Playground e CloudPanel somente na `main`, manualmente ou em PR com o rótulo `full-validation`.
+- Torna `docker-publish.yml` exclusivamente manual; a publicação automática permanece centralizada em `release.yml`.
+- Desabilita recarga automática de clientes NAS no playground para impedir HUP durante o smoke.
+- Troca o monitoramento de `updated_at` por fingerprint apenas dos campos RADIUS relevantes em produção.
+- Reduz o timeout do `radclient` e adiciona preflight da credencial/NAS antes do `Access-Accept`.
+- Adiciona testes de regressão para o pipeline rápido e para a estabilidade do FreeRADIUS.
+
 ### Revisão 4 — correção do workflow 80445390597
 
 - Corrige a inicialização do PHP-FPM no Docker Playground mantendo o master com os privilégios necessários e os workers como `www-data`.

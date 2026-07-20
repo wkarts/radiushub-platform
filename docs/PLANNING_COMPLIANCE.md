@@ -140,10 +140,10 @@ Implementado:
 |---|---|
 | Docker com PostgreSQL | Implementado |
 | Docker com MySQL | Implementado |
-| Docker Playground completo | Implementado e incluído no CI |
-| Docker atrás do CloudPanel | Implementado; proxy gerado e fluxo testado no CI |
+| Docker Playground completo | Implementado; smoke completo na `main`, execução manual ou PR com rótulo `full-validation` |
+| Docker atrás do CloudPanel | Implementado; proxy gerado e testado no CI completo da `main` |
 | CloudPanel PHP nativo | Implementado |
-| CloudPanel Playground | Implementado e incluído no CI |
+| CloudPanel Playground | Implementado; smoke completo na `main`, execução manual ou PR com rótulo `full-validation` |
 | Nginx nativo e reverse proxy | Templates separados |
 | Worker e Scheduler | Docker e arquivos Supervisor/Cron |
 | Liveness/readiness | `/health/live`, `/health/ready` e comando CLI |

@@ -221,6 +221,7 @@
 ./docs/FIRST_ACCESS.md
 ./docs/GITHUB.md
 ./docs/LOG_ANALYSIS_80442689140.md
+./docs/LOG_ANALYSIS_RUN_47.md
 ./docs/MIKROTIK.md
 ./docs/MIKROTIK_SSH.md
 ./docs/MYSQL_POSTGRESQL.md
@@ -534,6 +535,7 @@
 ./tests/Unit/AsaasSdkPackageIntegrationTest.php
 ./tests/Unit/AsaasWebhookEventMapperTest.php
 ./tests/Unit/BaseControllerContractTest.php
+./tests/Unit/CiPipelineContractTest.php
 ./tests/Unit/DeploymentPlaygroundContractTest.php
 ./tests/Unit/DeploymentRegressionTest.php
 ./tests/Unit/MigrationInventoryIntegrityTest.php

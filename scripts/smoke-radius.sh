@@ -15,8 +15,34 @@ username="$(read_env PLAYGROUND_NETWORK_USERNAME cliente.demo)"
 password="$(read_env PLAYGROUND_NETWORK_PASSWORD ClienteDemo@123)"
 nas_ip="$(read_env PLAYGROUND_NAS_IP_ADDRESS 127.0.0.10)"
 session_id="${RADIUS_SMOKE_SESSION_ID:-playground-smoke-validation}"
+attempts="${RADIUS_SMOKE_ATTEMPTS:-15}"
+delay_seconds="${RADIUS_SMOKE_DELAY_SECONDS:-1}"
+
+[[ "$attempts" =~ ^[1-9][0-9]*$ ]] || die "RADIUS_SMOKE_ATTEMPTS inválido: $attempts"
+[[ "$delay_seconds" =~ ^[0-9]+$ ]] || die "RADIUS_SMOKE_DELAY_SECONDS inválido: $delay_seconds"
 
 compose=(docker compose --env-file "$ENV_FILE" -p radiushub-playground -f docker-compose.yml -f docker-compose.playground.yml --profile postgres)
+
+wait_freeradius_health() {
+  local container_id status attempt
+  container_id="$("${compose[@]}" ps -q freeradius)"
+  [[ -n "$container_id" ]] || die "Container FreeRADIUS não foi criado."
+
+  for attempt in $(seq 1 30); do
+    status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container_id" 2>/dev/null || true)"
+    case "$status" in
+      healthy|running) return 0 ;;
+      unhealthy|exited|dead)
+        "${compose[@]}" logs --tail=200 freeradius >&2 || true
+        die "FreeRADIUS entrou no estado $status antes do smoke."
+        ;;
+    esac
+    sleep 1
+  done
+
+  "${compose[@]}" logs --tail=200 freeradius >&2 || true
+  die "FreeRADIUS não ficou saudável no prazo esperado."
+}
 
 run_auth() {
   "${compose[@]}" exec -T freeradius sh -s -- "$username" "$password" "$nas_ip" <<'SH'
@@ -29,7 +55,7 @@ printf '%s\n' \
   "User-Password = \"$password\"" \
   "NAS-IP-Address = $nas_ip" \
   'Calling-Station-Id = "02:00:00:00:00:01"' \
-  | radclient -x 127.0.0.1 auth "$RADIUS_LOCAL_SECRET"
+  | radclient -x -r 1 -t 1 127.0.0.1 auth "$RADIUS_LOCAL_SECRET"
 SH
 }
 
@@ -56,24 +82,31 @@ printf '%s\n' \
   'Framed-IP-Address = 10.10.10.20' \
   'Acct-Session-Time = 5' \
   'Acct-Terminate-Cause = User-Request' \
-  | radclient -x 127.0.0.1 acct "$RADIUS_LOCAL_SECRET"
+  | radclient -x -r 1 -t 1 127.0.0.1 acct "$RADIUS_LOCAL_SECRET"
 SH
 }
 
-log "Aguardando FreeRADIUS aceitar requisições..."
+log "Validando previamente o NAS e a credencial RADIUS no banco..."
+"${compose[@]}" exec -T app php artisan radiushub:playground:verify --radius --json
+
+log "Aguardando FreeRADIUS ficar saudável..."
+wait_freeradius_health
+
 # Fecha uma eventual sessão de smoke deixada por execução interrompida.
 run_accounting Stop >/dev/null 2>&1 || true
+
 auth_output=""
-for attempt in $(seq 1 45); do
+for attempt in $(seq 1 "$attempts"); do
   if auth_output="$(run_auth 2>&1)" && grep -q 'Access-Accept' <<<"$auth_output"; then
     break
   fi
-  if [[ "$attempt" -eq 45 ]]; then
+
+  if [[ "$attempt" -eq "$attempts" ]]; then
     printf '%s\n' "$auth_output" >&2
-    "${compose[@]}" logs --tail=200 freeradius >&2 || true
-    die "O FreeRADIUS não retornou Access-Accept para o usuário do playground."
+    "${compose[@]}" logs --tail=250 freeradius >&2 || true
+    die "O FreeRADIUS não retornou Access-Accept para o usuário do playground após $attempts tentativas."
   fi
-  sleep 2
+  sleep "$delay_seconds"
 done
 
 acct_output="$(run_accounting Start 2>&1)" || {
@@ -85,7 +118,7 @@ grep -q 'Accounting-Response' <<<"$acct_output" || {
   die "O FreeRADIUS não retornou Accounting-Response."
 }
 
-"${compose[@]}" exec -T app php artisan radiushub:playground:verify --accounting-session="$session_id"
-stop_output="$(run_accounting Stop 2>&1)" || true
+"${compose[@]}" exec -T app php artisan radiushub:playground:verify --radius --accounting-session="$session_id"
+run_accounting Stop >/dev/null 2>&1 || true
 
 printf 'SMOKE_RADIUS_OK\nUSUARIO=%s\nNAS_IP=%s\nSESSAO=%s\n' "$username" "$nas_ip" "$session_id"

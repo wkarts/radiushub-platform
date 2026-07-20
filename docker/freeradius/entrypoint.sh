@@ -40,20 +40,44 @@ wait_for_database() {
   done
 }
 
-latest_nas_update() {
+radius_clients_fingerprint() {
+  # O status operacional e os timestamps de monitoramento mudam com frequência,
+  # mas não alteram o cadastro RADIUS. O fingerprint considera somente os campos
+  # que realmente exigem recarga dos clientes NAS.
   if [ "$DRIVER" = pgsql ]; then
-    PGPASSWORD="${DB_PASSWORD:-}" psql -h "${DB_HOST:-postgres}" -p "${DB_PORT:-5432}" -U "${DB_USERNAME:-radiushub}" -d "${DB_DATABASE:-radiushub}" -Atqc "SELECT COALESCE(MAX(updated_at)::text, '') FROM mikrotik_devices WHERE deleted_at IS NULL" 2>/dev/null || true
+    PGPASSWORD="${DB_PASSWORD:-}" psql -h "${DB_HOST:-postgres}" -p "${DB_PORT:-5432}" -U "${DB_USERNAME:-radiushub}" -d "${DB_DATABASE:-radiushub}" -Atqc "
+      SELECT COALESCE(
+        md5(string_agg(
+          concat_ws('|', id::text, name, radius_source_ip, COALESCE(radius_secret_ciphertext, ''), active::text, COALESCE(deleted_at::text, '')),
+          '||' ORDER BY id::text
+        )),
+        ''
+      )
+      FROM mikrotik_devices
+    " 2>/dev/null || true
   else
-    MYSQL_PWD="${DB_PASSWORD:-}" mysql -h "${DB_HOST:-mysql}" -P "${DB_PORT:-3306}" -u "${DB_USERNAME:-radiushub}" "${DB_DATABASE:-radiushub}" -Nse "SELECT COALESCE(MAX(updated_at), '') FROM mikrotik_devices WHERE deleted_at IS NULL" 2>/dev/null || true
+    MYSQL_PWD="${DB_PASSWORD:-}" mysql -h "${DB_HOST:-mysql}" -P "${DB_PORT:-3306}" -u "${DB_USERNAME:-radiushub}" "${DB_DATABASE:-radiushub}" -Nse "
+      SET SESSION group_concat_max_len = 16777216;
+      SELECT COALESCE(
+        MD5(GROUP_CONCAT(
+          CONCAT_WS('|', id, name, radius_source_ip, COALESCE(radius_secret_ciphertext, ''), active, COALESCE(deleted_at, ''))
+          ORDER BY id SEPARATOR '||'
+        )),
+        ''
+      )
+      FROM mikrotik_devices
+    " 2>/dev/null || true
   fi
 }
 
 watch_radius_clients() {
-  local interval="${RADIUS_CLIENT_RELOAD_SECONDS:-30}" previous="" current=""
+  local interval="$1" previous current
+
+  previous="$(radius_clients_fingerprint)"
   while sleep "$interval"; do
-    current="$(latest_nas_update)"
+    current="$(radius_clients_fingerprint)"
     if [ -n "$previous" ] && [ "$current" != "$previous" ]; then
-      echo "Alteração de NAS detectada; recarregando FreeRADIUS."
+      echo "Configuração RADIUS dos NAS alterada; recarregando FreeRADIUS."
       kill -HUP 1 >/dev/null 2>&1 || true
     fi
     previous="$current"
@@ -68,5 +92,14 @@ render /opt/radiushub-radius/templates/common/clients.conf "$CONFIG_ROOT/clients
 render /opt/radiushub-radius/templates/common/default "$CONFIG_ROOT/sites-enabled/default"
 
 freeradius -XC
-watch_radius_clients &
+reload_interval="${RADIUS_CLIENT_RELOAD_SECONDS:-30}"
+[[ "$reload_interval" =~ ^[0-9]+$ ]] || {
+  echo "RADIUS_CLIENT_RELOAD_SECONDS inválido: $reload_interval" >&2
+  exit 1
+}
+if [ "$reload_interval" -gt 0 ]; then
+  watch_radius_clients "$reload_interval" &
+else
+  echo "Recarga automática de clientes NAS desabilitada neste ambiente."
+fi
 exec "$@"

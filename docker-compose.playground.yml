@@ -31,6 +31,10 @@ services:
       AUTO_SEED: "false"
 
   freeradius:
+    environment:
+      # O playground possui cadastro NAS determinístico. Evita HUP durante o
+      # smoke RADIUS e elimina flutuações causadas por last_seen_at/updated_at.
+      RADIUS_CLIENT_RELOAD_SECONDS: "0"
     ports:
       - "${RADIUS_BIND_ADDRESS:-127.0.0.1}:${RADIUS_AUTH_PORT:-1812}:1812/udp"
       - "${RADIUS_BIND_ADDRESS:-127.0.0.1}:${RADIUS_ACCT_PORT:-1813}:1813/udp"

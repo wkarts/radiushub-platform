@@ -60,6 +60,9 @@ final class DeploymentPlaygroundContractTest extends TestCase
         self::assertStringContainsString('Access-Accept', $script);
         self::assertStringContainsString('Accounting-Response', $script);
         self::assertStringContainsString('--accounting-session=', $script);
+        self::assertStringContainsString('--radius', $script);
+        self::assertStringContainsString('radclient -x -r 1 -t 1', $script);
+        self::assertStringContainsString('RADIUS_SMOKE_ATTEMPTS', $script);
     }
 
     public function test_cloudpanel_docker_installer_generates_proxy_and_defers_public_https_smoke(): void
@@ -108,6 +111,18 @@ final class DeploymentPlaygroundContractTest extends TestCase
         self::assertStringContainsString('SEED_DEFAULT_COMPANY', $repair);
         self::assertStringContainsString('set_env APP_VERSION', $repair);
         self::assertStringContainsString('REDIS_HOST', $repair);
+    }
+
+    public function test_playground_disables_radius_client_reload_and_production_uses_stable_fingerprint(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $overlay = file_get_contents($root.'/docker-compose.playground.yml');
+        $entrypoint = file_get_contents($root.'/docker/freeradius/entrypoint.sh');
+
+        self::assertStringContainsString('RADIUS_CLIENT_RELOAD_SECONDS: "0"', $overlay);
+        self::assertStringContainsString('radius_clients_fingerprint', $entrypoint);
+        self::assertStringContainsString('radius_secret_ciphertext', $entrypoint);
+        self::assertStringNotContainsString('MAX(updated_at)', $entrypoint);
     }
 
 }

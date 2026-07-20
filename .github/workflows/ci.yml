@@ -1,15 +1,23 @@
 name: CI
 
 on:
-  push:
-    branches: ['**']
   pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      full_validation:
+        description: Executar também os smokes completos de Docker e CloudPanel
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -26,7 +34,7 @@ jobs:
         run: |
           test -f .env.playground.example
           test -f .env.cloudpanel.playground.example
-          chmod +x scripts/*.sh artisan
+          chmod +x scripts/*.sh artisan docker/app/entrypoint.sh docker/freeradius/entrypoint.sh
       - name: Preparar diretórios graváveis do Laravel
         run: mkdir -p bootstrap/cache storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
       - uses: shivammathur/setup-php@v2
@@ -95,6 +103,10 @@ jobs:
           extensions: pdo_pgsql, pgsql, mbstring, openssl, json, intl, curl, dom, bcmath
           coverage: none
           tools: composer:v2
+      - uses: actions/cache@v5
+        with:
+          path: ~/.cache/composer/files
+          key: composer-${{ runner.os }}-pgsql-${{ hashFiles('composer.json', 'packages/asaas-sdk-argws/composer.json') }}
       - run: composer install --no-interaction --prefer-dist
       - run: composer migrations:check
       - run: composer version:check
@@ -150,6 +162,10 @@ jobs:
           extensions: pdo_mysql, mysqli, mbstring, openssl, json, intl, curl, dom, bcmath
           coverage: none
           tools: composer:v2
+      - uses: actions/cache@v5
+        with:
+          path: ~/.cache/composer/files
+          key: composer-${{ runner.os }}-mysql-${{ hashFiles('composer.json', 'packages/asaas-sdk-argws/composer.json') }}
       - run: composer install --no-interaction --prefer-dist
       - run: composer migrations:check
       - run: composer version:check
@@ -161,49 +177,48 @@ jobs:
       - run: php artisan radiushub:doctor
       - run: php artisan radiushub:radius:render --output=storage/app/radius-ci --force
 
-  docker-build:
-    name: Docker / ${{ matrix.image }}
+  container-contracts:
+    name: Docker / contratos e Compose
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - image: app
-            dockerfile: docker/app/Dockerfile
-          - image: web
-            dockerfile: docker/nginx/Dockerfile
-          - image: freeradius
-            dockerfile: docker/freeradius/Dockerfile
     steps:
       - uses: actions/checkout@v6
-      - name: Validar arquivos distribuídos e normalizar scripts
+      - name: Normalizar scripts
+        run: chmod +x scripts/*.sh artisan docker/app/entrypoint.sh docker/freeradius/entrypoint.sh
+      - name: Validar scripts de containers
         run: |
-          test -f .env.playground.example
-          test -f .env.cloudpanel.playground.example
-          chmod +x scripts/*.sh artisan
-      - uses: docker/setup-buildx-action@v4
-      - uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: ${{ matrix.dockerfile }}
-          push: false
-          load: false
-          tags: radiushub-${{ matrix.image }}:ci
-          cache-from: type=gha,scope=ci-${{ matrix.image }}
-          cache-to: type=gha,mode=max,scope=ci-${{ matrix.image }}
+          bash -n docker/app/entrypoint.sh
+          bash -n docker/freeradius/entrypoint.sh
+          bash -n scripts/playground.sh
+          bash -n scripts/smoke-radius.sh
+          bash -n scripts/install-cloudpanel-docker.sh
+      - name: Validar Compose PostgreSQL
+        run: |
+          cp .env.docker.postgres.example .env
+          RADIUSHUB_ENV_FILE=.env docker compose --profile postgres config --quiet
+      - name: Validar Compose MySQL
+        run: |
+          cp .env.docker.mysql.example .env
+          RADIUSHUB_ENV_FILE=.env docker compose --profile mysql config --quiet
+      - name: Validar Compose Playground
+        run: |
+          cp .env.playground.example .env.playground
+          RADIUSHUB_ENV_FILE=.env.playground docker compose --env-file .env.playground -p radiushub-playground -f docker-compose.yml -f docker-compose.playground.yml --profile postgres config --quiet
 
   docker-playground-smoke:
     name: Docker Playground / smoke completo
+    if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && inputs.full_validation) ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-validation'))
     runs-on: ubuntu-latest
-    needs: [docker-build]
-    timeout-minutes: 35
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v6
       - name: Validar arquivos distribuídos e normalizar scripts
         run: |
           test -f .env.playground.example
           test -f .env.cloudpanel.playground.example
-          chmod +x scripts/*.sh artisan
+          chmod +x scripts/*.sh artisan docker/app/entrypoint.sh docker/freeradius/entrypoint.sh
       - name: Preparar playground
         run: |
           cp .env.playground.example .env.playground
@@ -234,8 +249,12 @@ jobs:
 
   cloudpanel-native-smoke:
     name: CloudPanel nativo / smoke de aplicação
+    if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && inputs.full_validation) ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-validation'))
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     services:
       postgres:
         image: postgres:17-alpine
@@ -260,6 +279,10 @@ jobs:
           extensions: pdo_pgsql, pgsql, mbstring, openssl, json, intl, curl, dom, bcmath, fileinfo
           coverage: none
           tools: composer:v2
+      - uses: actions/cache@v5
+        with:
+          path: ~/.cache/composer/files
+          key: composer-${{ runner.os }}-cloudpanel-${{ hashFiles('composer.json', 'packages/asaas-sdk-argws/composer.json') }}
       - name: Preparar .env nativo de playground
         run: |
           cp .env.cloudpanel.playground.example .env
