@@ -23,7 +23,7 @@ jobs:
       matrix:
         php: ['8.3', '8.4']
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Validar arquivos distribuídos e normalizar scripts
         run: |
           test -f .env.playground.example
@@ -84,7 +84,7 @@ jobs:
           --health-cmd="pg_isready -U radiushub -d radiushub_test"
           --health-interval=5s --health-timeout=5s --health-retries=30
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Validar arquivos distribuídos e normalizar scripts
         run: |
           test -f .env.playground.example
@@ -144,7 +144,7 @@ jobs:
           --health-cmd="mysqladmin ping -h 127.0.0.1 -uradiushub -pradiushub --silent"
           --health-interval=5s --health-timeout=5s --health-retries=30
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Validar arquivos distribuídos e normalizar scripts
         run: |
           test -f .env.playground.example
@@ -178,7 +178,7 @@ jobs:
     name: Docker / contratos e Compose
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Normalizar scripts
         run: chmod +x scripts/*.sh artisan docker/app/entrypoint.sh docker/freeradius/entrypoint.sh docker/freeradius/validate-templates.sh
       - name: Validar scripts de containers
@@ -209,7 +209,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
       - name: Validar arquivos distribuídos e normalizar scripts
         run: |
@@ -305,7 +305,7 @@ jobs:
           --health-cmd="pg_isready -U radiushub -d radiushub_cloudpanel"
           --health-interval=5s --health-timeout=5s --health-retries=30
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Validar arquivos distribuídos e normalizar scripts
         run: |
           test -f .env.playground.example
