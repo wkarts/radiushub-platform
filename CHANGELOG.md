@@ -1,6 +1,27 @@
 # Changelog
 
-### Revisão 5 — otimização definitiva da validação de PR e estabilidade do smoke RADIUS
+## 1.4.1 — 2026-07-20
+
+### Corrigido
+
+- restaura Docker Playground e CloudPanel nativo como validações obrigatórias de todo Pull Request;
+- remove dependência do label `full-validation` e da execução posterior ao merge;
+- mantém `push` do CI restrito à `main`, evitando duplicação com `pull_request`;
+- constrói app, web e FreeRADIUS no próprio job integral antes do smoke;
+- corrige o diretório de configuração da imagem oficial FreeRADIUS 3.2.10;
+- detecta o `radiusd.conf` efetivamente carregado pelo binário;
+- impede inicialização quando o módulo SQL for ignorado;
+- exige carregamento de `rlm_sql` antes de aceitar o container como válido;
+- aplica a mesma descoberta e validação ao instalador FreeRADIUS nativo;
+- preserva timeout curto do `radclient`, preflight RADIUS e fingerprint estável de NAS.
+
+### Compatibilidade
+
+- nenhuma migration nova;
+- nenhuma funcionalidade, tabela, rota ou contrato público removido;
+- atualização incremental sobre a versão 1.4.0.
+
+## 1.4.0 revisão 5 — estratégia de CI posteriormente revertida
 
 - Restringe o evento `push` do CI à branch `main`, eliminando a execução duplicada `push` + `pull_request` para cada commit do PR.
 - Remove a matriz redundante de build das três imagens Docker do CI de PR.
@@ -12,7 +33,7 @@
 - Reduz o timeout do `radclient` e adiciona preflight da credencial/NAS antes do `Access-Accept`.
 - Adiciona testes de regressão para o pipeline rápido e para a estabilidade do FreeRADIUS.
 
-### Revisão 4 — correção do workflow 80445390597
+## 1.4.0 revisão 4 — correção do workflow 80445390597
 
 - Corrige a inicialização do PHP-FPM no Docker Playground mantendo o master com os privilégios necessários e os workers como `www-data`.
 - Mantém worker, scheduler e comandos CLI executados por `gosu www-data`.

@@ -1,4 +1,6 @@
 # Análise do CI nº 47 — Pull Request 13
+> **Nota da versão 1.4.1:** a condição por label descrita neste documento foi revertida. Playground e CloudPanel voltaram a ser obrigatórios em todo Pull Request.
+
 
 ## Resultado observado
 

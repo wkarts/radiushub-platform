@@ -16,12 +16,14 @@ shift || true
 USE_IMAGES=false
 FOLLOW=false
 SKIP_HTTP_SMOKE=false
+SKIP_BUILD=false
 SMOKE_URL=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --pull-images) USE_IMAGES=true ;;
     --follow|-f) FOLLOW=true ;;
     --skip-http-smoke) SKIP_HTTP_SMOKE=true ;;
+    --skip-build) SKIP_BUILD=true ;;
     --smoke-url=*) SMOKE_URL="${1#*=}" ;;
     --smoke-url) shift; SMOKE_URL="${1:-}" ;;
     --help|-h)
@@ -42,6 +44,7 @@ Opções:
   --follow           Mantém acompanhamento dos logs.
   --smoke-url URL    URL usada no teste de login; padrão: APP_URL.
   --skip-http-smoke  Adia o login HTTP, útil antes de aplicar o proxy CloudPanel.
+  --skip-build       Usa imagens já construídas localmente; destinado ao CI após build explícito.
 HELP
       exit 0 ;;
     *) die "Opção desconhecida: $1" ;;
@@ -161,6 +164,8 @@ case "$ACTION" in
     if [[ "$USE_IMAGES" == true ]]; then
       log "Baixando imagens RadiusHub publicadas..."
       "${compose[@]}" pull app web worker scheduler freeradius redis postgres
+    elif [[ "$SKIP_BUILD" == true ]]; then
+      log "Usando imagens locais previamente construídas e validadas."
     else
       log "Compilando imagens do playground..."
       "${compose[@]}" build --pull app web freeradius
@@ -183,6 +188,8 @@ case "$ACTION" in
     "${compose[@]}" down -v --remove-orphans
     if [[ "$USE_IMAGES" == true ]]; then
       "${compose[@]}" pull app web worker scheduler freeradius redis postgres
+    elif [[ "$SKIP_BUILD" == true ]]; then
+      log "Usando imagens locais previamente construídas e validadas."
     else
       "${compose[@]}" build --pull app web freeradius
     fi

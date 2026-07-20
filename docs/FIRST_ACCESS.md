@@ -6,7 +6,7 @@ O RadiusHub precisa de três elementos coerentes para que o primeiro login termi
 2. ao menos um tenant ativo;
 3. ao menos uma empresa ativa vinculada ao tenant.
 
-A versão 1.4.0 reconcilia esses elementos de forma idempotente com:
+A versão 1.4.1 reconcilia esses elementos de forma idempotente com:
 
 ```bash
 php artisan radiushub:bootstrap-platform
@@ -43,7 +43,7 @@ O bootstrap reutiliza um contexto ativo existente quando possível. Caso não ex
 
 ## Recuperar instalação CloudPanel antiga com erro 403
 
-Após substituir os arquivos pela versão 1.4.0:
+Após substituir os arquivos pela versão 1.4.1:
 
 ```bash
 cd /home/USUARIO/htdocs/DOMINIO

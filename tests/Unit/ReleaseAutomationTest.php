@@ -46,6 +46,6 @@ final class ReleaseAutomationTest extends TestCase
 
         self::assertFileExists($root.'/VERSION');
         self::assertFileExists($root.'/scripts/check-version-integrity.php');
-        self::assertSame('1.4.0', trim((string) file_get_contents($root.'/VERSION')));
+        self::assertSame('1.4.1', trim((string) file_get_contents($root.'/VERSION')));
     }
 }
