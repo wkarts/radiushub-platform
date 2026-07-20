@@ -81,6 +81,9 @@
         "planning:check": [
             "@php scripts/check-planning-compliance.php"
         ],
+        "radius:check": [
+            "@php scripts/check-freeradius-templates.php"
+        ],
         "doctor": [
             "@php artisan radiushub:doctor"
         ],

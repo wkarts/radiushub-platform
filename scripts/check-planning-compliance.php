@@ -61,6 +61,8 @@ foreach ([
     'docs/FIRST_ACCESS.md',
     'scripts/smoke-http.sh',
     'scripts/smoke-radius.sh',
+    'scripts/check-freeradius-templates.php',
+    'docker/freeradius/validate-templates.sh',
     'docs/PLANNING_COMPLIANCE.md',
 ] as $file) {
     $requireFile($file);
@@ -115,6 +117,13 @@ foreach (['/health/ready', 'radiushub:playground:verify', 'smoke-http.sh', 'smok
 $contains($http, 'Token CSRF', 'smoke HTTP');
 $contains($radius, 'Access-Accept', 'smoke RADIUS');
 $contains($radius, 'Accounting-Response', 'smoke accounting');
+
+$radiusTemplates = $requireFile('resources/freeradius/mysql/sql').$requireFile('resources/freeradius/postgresql/sql');
+$notContains($radiusTemplates, 'pool { start =', 'templates FreeRADIUS');
+$contains($radiusTemplates, 'max_retries = 5', 'pool SQL FreeRADIUS');
+$contains($radiusTemplates, 'cleanup_interval = 30', 'pool SQL FreeRADIUS');
+$contains($requireFile('docker/freeradius/Dockerfile'), 'radiushub-radius-validate-templates', 'build FreeRADIUS');
+$contains($requireFile('docker/freeradius/validate-templates.sh'), 'freeradius -d "$config_root" -XC', 'parser FreeRADIUS');
 
 
 $bootstrap = $requireFile('app/Services/Platform/PlatformBootstrapService.php');
