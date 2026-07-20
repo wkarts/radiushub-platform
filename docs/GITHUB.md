@@ -2,7 +2,7 @@
 
 ## Publicação automática
 
-A partir da versão 1.4.2, não é necessário criar a tag manualmente depois do merge.
+A partir da versão 1.4.3, não é necessário criar a tag manualmente depois do merge.
 
 O fluxo é:
 
@@ -84,9 +84,9 @@ O workflow também aceita uma tag `vX.Y.Z` enviada manualmente.
 ## Imagens
 
 ```text
-ghcr.io/wkarts/radiushub-app:1.4.2
-ghcr.io/wkarts/radiushub-web:1.4.2
-ghcr.io/wkarts/radiushub-freeradius:1.4.2
+ghcr.io/wkarts/radiushub-app:1.4.3
+ghcr.io/wkarts/radiushub-web:1.4.3
+ghcr.io/wkarts/radiushub-freeradius:1.4.3
 ```
 
 Também são publicadas as tags `1.4`, `latest` e `sha-*`.
@@ -118,7 +118,7 @@ Depois da publicação, confirma a existência da release e dos quatro artefatos
 
 ### Recuperar a release 1.3.4 que ficou apenas com tag
 
-Depois de incorporar a versão 1.4.2, execute manualmente `Release automática` com:
+Depois de incorporar a versão 1.4.3, execute manualmente `Release automática` com:
 
 - `ref`: `f3cccaf5b3910d366d30599b2037baf7be3d732c`;
 - `rebuild_existing`: `false`.

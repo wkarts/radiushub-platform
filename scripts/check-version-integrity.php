@@ -138,6 +138,7 @@ $checks = [
         'validate_dialect "$base_root" postgresql 5432',
         'validate_dialect "$base_root" mysql 3306',
         'rlm_sql_null',
+        'nl -ba "$config_root/sites-enabled/default"',
     ],
     'resources/freeradius/mysql/sql' => [
         "pool {\n",
@@ -149,9 +150,22 @@ $checks = [
         'max_retries = 5',
         'cleanup_interval = 30',
     ],
+    'resources/freeradius/common/default' => [
+        "Auth-Type PAP {\n",
+        "Auth-Type CHAP {\n",
+        "Auth-Type MS-CHAP {\n",
+        'acct_unique',
+        'Post-Auth-Type REJECT {',
+    ],
     'scripts/check-freeradius-templates.php' => [
         'Templates FreeRADIUS MySQL/PostgreSQL estruturalmente válidos.',
         'o bloco pool deve começar em uma linha própria',
+        'bloco nomeado deve ser multilinha',
+        'bloco Auth-Type %s inválido ou ausente',
+    ],
+    'tests/Unit/FreeRadiusVirtualServerContractTest.php' => [
+        'test_named_authentication_blocks_use_parser_safe_multiline_syntax',
+        'test_build_still_runs_the_real_freeradius_parser_for_both_dialects',
     ],
     'composer.json' => [
         '"radius:check"',
@@ -180,6 +194,21 @@ $checks = [
         '1.4.2',
         "Expected comma after '5'",
         'freeradius -XC',
+    ],
+    'scripts/upgrade-1.4.2-to-1.4.3.sh' => [
+        'APP_VERSION',
+        'check-freeradius-templates.php',
+        'radiushub:health --ready',
+    ],
+    'docs/UPGRADE_1.4.2_TO_1.4.3.md' => [
+        '1.4.3',
+        'Parse error after "pap"',
+        'Auth-Type PAP',
+    ],
+    'docs/LOG_ANALYSIS_80457568511.md' => [
+        '80457568511',
+        'sites-enabled/default[29]',
+        'Template FreeRADIUS inválido para postgresql',
     ],
     '.github/workflows/release.yml' => [
         "workflow_run:",
@@ -223,6 +252,14 @@ foreach (['mysql', 'postgresql'] as $dialect) {
     if ($sqlTemplate !== '' && preg_match('/^\s*pool\s*\{[^\r\n]*\S/m', $sqlTemplate)) {
         $errors[] = "resources/freeradius/{$dialect}/sql: bloco pool não pode conter diretivas em linha única";
     }
+}
+
+$radiusDefault = $read('resources/freeradius/common/default');
+if (
+    $radiusDefault !== ''
+    && preg_match('/^\s*(Auth-Type|Post-Auth-Type|Autz-Type|Acct-Type)\s+[A-Za-z0-9_-]+\s*\{[^\r\n]*\S/m', $radiusDefault)
+) {
+    $errors[] = 'resources/freeradius/common/default: blocos nomeados não podem permanecer compactados em uma linha';
 }
 
 if ($errors !== []) {

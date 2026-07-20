@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.4.3 — 2026-07-20
+
+### Corrigido
+
+- Sintaxe do bloco `authenticate` no virtual server FreeRADIUS.
+- Falha `Parse error after "pap": unexpected token "}"` no parser 3.2.10.
+- Declarações compactadas de PAP, CHAP e MS-CHAP.
+
+### Proteções
+
+- Verificação de chaves balanceadas no `sites-enabled/default`.
+- Rejeição de blocos nomeados compactados em uma linha.
+- Teste de regressão específico para os três `Auth-Type`.
+- Parser real PostgreSQL/MySQL e validação integral da Pull Request preservados.
+
 ## 1.4.2 — 2026-07-20
 
 ### Corrigido

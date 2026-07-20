@@ -34,7 +34,7 @@ nano .env
 
 ```env
 RADIUSHUB_REGISTRY=ghcr.io/wkarts
-RADIUSHUB_TAG=1.4.2
+RADIUSHUB_TAG=1.4.3
 RADIUSHUB_ENV_FILE=.env
 ```
 
