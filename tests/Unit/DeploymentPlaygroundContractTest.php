@@ -125,4 +125,41 @@ final class DeploymentPlaygroundContractTest extends TestCase
         self::assertStringNotContainsString('MAX(updated_at)', $entrypoint);
     }
 
+    public function test_pull_request_executes_complete_validation_without_labels_or_merge(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $ci = file_get_contents($root.'/.github/workflows/ci.yml');
+
+        self::assertIsString($ci);
+        self::assertStringContainsString('pull_request:', $ci);
+        self::assertStringContainsString('Docker Playground / smoke completo', $ci);
+        self::assertStringContainsString('CloudPanel nativo / smoke de aplicação', $ci);
+        self::assertStringContainsString('Construir imagem FreeRADIUS', $ci);
+        self::assertStringContainsString('install-cloudpanel-docker.sh --playground', $ci);
+        self::assertStringContainsString('install-cloudpanel-playground.sh --reuse-env', $ci);
+        self::assertStringNotContainsString('full-validation', $ci);
+        self::assertStringNotContainsString('github.event.pull_request.labels', $ci);
+        self::assertStringNotContainsString('actions/upload-artifact', $ci);
+        self::assertStringNotContainsString('gh release create', $ci);
+    }
+
+    public function test_freeradius_renders_into_the_active_configuration_tree_and_requires_sql(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $entrypoint = file_get_contents($root.'/docker/freeradius/entrypoint.sh');
+        $nativeInstaller = file_get_contents($root.'/scripts/install-freeradius-native.sh');
+
+        foreach ([$entrypoint, $nativeInstaller] as $contents) {
+            self::assertIsString($contents);
+            self::assertStringContainsString('radiusd.conf', $contents);
+            self::assertStringContainsString('/etc/freeradius', $contents);
+            self::assertStringContainsString('Ignoring "sql"', $contents);
+            self::assertStringContainsString('Loaded module rlm_sql', $contents);
+            self::assertStringContainsString('O módulo SQL não foi carregado', $contents);
+        }
+
+        self::assertStringContainsString('detect_config_root', $entrypoint);
+        self::assertStringNotContainsString('FREERADIUS_CONFIG_ROOT:-/etc/freeradius/3.0', $entrypoint);
+    }
+
 }

@@ -1,4 +1,4 @@
-# RadiusHub Platform 1.4.0
+# RadiusHub Platform 1.4.1
 
 Plataforma web multi-tenant em PHP/Laravel para administrar empresas, clientes, planos, Hotspot, PPPoE, vouchers, FreeRADIUS, equipamentos MikroTik por **SSH Key**, financeiro e integração Asaas.
 
@@ -161,14 +161,14 @@ Endpoints:
 /health/ready
 ```
 
-## Atualização 1.3.5 → 1.4.0
+## Atualização 1.4.0 → 1.4.1
 
 ```bash
-chmod +x scripts/upgrade-1.3.5-to-1.4.0.sh
-./scripts/upgrade-1.3.5-to-1.4.0.sh
+chmod +x scripts/upgrade-1.4.0-to-1.4.1.sh
+./scripts/upgrade-1.4.0-to-1.4.1.sh
 ```
 
-O upgrade não habilita playground na instalação existente, preserva `.env`, `APP_KEY`, banco, chaves SSH, segredos RADIUS e credenciais Asaas e reconcilia o Superadministrador, tenant e empresa padrão. Para reparar diretamente uma instalação antiga com erro 403, execute `bash scripts/repair-cloudpanel-bootstrap.sh`.
+A atualização preserva `.env`, `APP_KEY`, banco, `storage/`, chaves SSH, segredos RADIUS e credenciais Asaas. Não há migration nova. Em instalações anteriores à 1.4.0, aplique primeiro `scripts/upgrade-1.3.5-to-1.4.0.sh`.
 
 ## Documentação
 
@@ -186,7 +186,7 @@ O upgrade não habilita playground na instalação existente, preserva `.env`, `
 - [CloudPanel](docs/DEPLOY_CLOUDPANEL.md)
 - [Asaas multiempresa](docs/ASAAS_WEBHOOKS_MULTIEMPRESA.md)
 - [GitHub, GHCR e releases](docs/GITHUB.md)
-- [Upgrade 1.3.5 → 1.4.0](docs/UPGRADE_1.3.5_TO_1.4.0.md)
+- [Upgrade 1.4.0 → 1.4.1](docs/UPGRADE_1.4.0_TO_1.4.1.md)
 
 ## Segurança inicial obrigatória
 

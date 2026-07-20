@@ -119,6 +119,29 @@ $checks = [
         'chmod +x scripts/*.sh artisan',
         'bash ./scripts/playground.sh',
         'bash ./scripts/install-cloudpanel-playground.sh',
+        'Construir imagem FreeRADIUS',
+        'Docker Playground / smoke completo',
+        'CloudPanel nativo / smoke de aplicação',
+    ],
+    'docker/freeradius/entrypoint.sh' => [
+        'detect_config_root',
+        'radiusd.conf',
+        'Ignoring "sql"',
+        'Loaded module rlm_sql',
+    ],
+    'scripts/install-freeradius-native.sh' => [
+        'detect_freeradius_config_root',
+        'Ignoring "sql"',
+        'Loaded module rlm_sql',
+    ],
+    'scripts/upgrade-1.4.0-to-1.4.1.sh' => [
+        'APP_VERSION',
+        'radiushub:bootstrap-platform',
+        'radiushub:health --ready',
+    ],
+    'docs/UPGRADE_1.4.0_TO_1.4.1.md' => [
+        '1.4.1',
+        'Ignoring "sql"',
     ],
     '.github/workflows/release.yml' => [
         "workflow_run:",
@@ -142,6 +165,18 @@ foreach ($checks as $file => $needles) {
             $errors[] = "{$file}: referência obrigatória ausente: {$needle}";
         }
     }
+}
+
+$ciContents = $read('.github/workflows/ci.yml');
+foreach (['full-validation', 'github.event.pull_request.labels', 'inputs.full_validation', 'actions/upload-artifact', 'gh release create'] as $forbidden) {
+    if ($ciContents !== '' && str_contains($ciContents, $forbidden)) {
+        $errors[] = ".github/workflows/ci.yml: conteúdo proibido no CI integral do PR: {$forbidden}";
+    }
+}
+
+$radiusEntrypoint = $read('docker/freeradius/entrypoint.sh');
+if ($radiusEntrypoint !== '' && str_contains($radiusEntrypoint, 'FREERADIUS_CONFIG_ROOT:-/etc/freeradius/3.0')) {
+    $errors[] = 'docker/freeradius/entrypoint.sh: diretório FreeRADIUS não pode permanecer fixo em /etc/freeradius/3.0';
 }
 
 if ($errors !== []) {

@@ -16,6 +16,6 @@ return [
         'driver' => env('APP_MAINTENANCE_DRIVER', 'file'),
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
-    'version' => env('APP_VERSION', '1.4.0'),
+    'version' => env('APP_VERSION', '1.4.1'),
     'author' => env('APP_AUTHOR', "WWSoftware's Sistemas"),
 ];

@@ -1,6 +1,6 @@
-# Conformidade do planejamento — RadiusHub Platform 1.4.0
+# Conformidade do planejamento — RadiusHub Platform 1.4.1
 
-Esta matriz relaciona o planejamento funcional com a implementação preservada e evoluída na versão 1.4.0.
+Esta matriz relaciona o planejamento funcional com a implementação preservada e evoluída na versão 1.4.1.
 
 ## Legenda
 
@@ -140,10 +140,10 @@ Implementado:
 |---|---|
 | Docker com PostgreSQL | Implementado |
 | Docker com MySQL | Implementado |
-| Docker Playground completo | Implementado; smoke completo na `main`, execução manual ou PR com rótulo `full-validation` |
-| Docker atrás do CloudPanel | Implementado; proxy gerado e testado no CI completo da `main` |
+| Docker Playground completo | Implementado; build e smoke completo obrigatórios em todo Pull Request |
+| Docker atrás do CloudPanel | Implementado; proxy gerado e testado no próprio Pull Request |
 | CloudPanel PHP nativo | Implementado |
-| CloudPanel Playground | Implementado; smoke completo na `main`, execução manual ou PR com rótulo `full-validation` |
+| CloudPanel Playground | Implementado; build e smoke completo obrigatórios em todo Pull Request |
 | Nginx nativo e reverse proxy | Templates separados |
 | Worker e Scheduler | Docker e arquivos Supervisor/Cron |
 | Liveness/readiness | `/health/live`, `/health/ready` e comando CLI |

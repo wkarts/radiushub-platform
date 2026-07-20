@@ -7,6 +7,7 @@ cd "$PROJECT_ROOT"
 DB_ENGINE=postgres
 USE_IMAGES=false
 PLAYGROUND=false
+SKIP_BUILD=false
 APP_URL_VALUE=""
 APP_PORT_VALUE="8080"
 
@@ -16,6 +17,7 @@ while [[ $# -gt 0 ]]; do
     --postgres|--postgresql) DB_ENGINE=postgres ;;
     --pull-images) USE_IMAGES=true ;;
     --playground) PLAYGROUND=true ;;
+    --skip-build) SKIP_BUILD=true ;;
     --url=*) APP_URL_VALUE="${1#*=}" ;;
     --url) shift; APP_URL_VALUE="${1:-}" ;;
     --port=*) APP_PORT_VALUE="${1#*=}" ;;
@@ -29,6 +31,7 @@ Opções:
   --mysql             MySQL 8.4.
   --pull-images       Usa imagens publicadas no GHCR.
   --playground        Sobe o ambiente descartável de testes.
+  --skip-build        No playground, usa imagens locais já construídas pelo CI.
   --url URL           URL pública HTTPS configurada no CloudPanel.
   --port PORTA        Porta local do container web (padrão 8080).
 
@@ -47,6 +50,11 @@ fi
 [[ "$APP_URL_VALUE" =~ ^https?:// ]] || { echo "Informe --url com http:// ou https://." >&2; exit 1; }
 [[ "$APP_PORT_VALUE" =~ ^[0-9]+$ ]] && (( APP_PORT_VALUE >= 1 && APP_PORT_VALUE <= 65535 )) \
   || { echo "Porta local inválida: $APP_PORT_VALUE" >&2; exit 1; }
+
+if [[ "$SKIP_BUILD" == true && "$PLAYGROUND" != true ]]; then
+  echo "--skip-build é permitido somente com --playground." >&2
+  exit 1
+fi
 
 if [[ "$PLAYGROUND" == true && "$DB_ENGINE" != postgres ]]; then
   echo "O playground integrado usa PostgreSQL para reproduzir a matriz principal de homologação. Remova --mysql." >&2
@@ -86,6 +94,7 @@ sed -e "s|__APP_PORT__|$APP_PORT_VALUE|g" \
 
 args=()
 [[ "$USE_IMAGES" == true ]] && args+=(--pull-images)
+[[ "$SKIP_BUILD" == true ]] && args+=(--skip-build)
 
 if [[ "$PLAYGROUND" == true ]]; then
   if [[ "$APP_URL_VALUE" =~ ^https?://(127\.0\.0\.1|localhost)(:[0-9]+)?/?$ ]]; then

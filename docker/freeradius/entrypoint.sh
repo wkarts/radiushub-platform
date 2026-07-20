@@ -1,7 +1,51 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CONFIG_ROOT="${FREERADIUS_CONFIG_ROOT:-/etc/freeradius/3.0}"
+detect_config_root() {
+  local explicit="${FREERADIUS_CONFIG_ROOT:-}" probe radiusd_file candidate
+
+  if [ -n "$explicit" ]; then
+    [ -f "$explicit/radiusd.conf" ] || {
+      echo "FREERADIUS_CONFIG_ROOT não contém radiusd.conf: $explicit" >&2
+      return 1
+    }
+    printf '%s' "$explicit"
+    return 0
+  fi
+
+  # A imagem oficial freeradius/freeradius-server usa /etc/freeradius,
+  # enquanto os pacotes Debian/Ubuntu normalmente usam /etc/freeradius/3.0.
+  # Descobre primeiro o diretório realmente carregado pelo binário para não
+  # renderizar o módulo SQL em uma árvore existente, porém inativa.
+  probe="$(freeradius -XC 2>&1 || true)"
+  radiusd_file="$(
+    printf '%s\n' "$probe" \
+      | sed -n 's|.*from file \([^ ]*/radiusd\.conf\).*|\1|p' \
+      | head -n 1
+  )"
+
+  if [ -n "$radiusd_file" ] && [ -f "$radiusd_file" ]; then
+    dirname "$radiusd_file"
+    return 0
+  fi
+
+  for candidate in /etc/freeradius /etc/freeradius/3.0; do
+    if [ -f "$candidate/radiusd.conf" ]; then
+      printf '%s' "$candidate"
+      return 0
+    fi
+  done
+
+  echo "Não foi possível localizar o radiusd.conf ativo do FreeRADIUS." >&2
+  return 1
+}
+
+CONFIG_ROOT="$(detect_config_root)"
+echo "Configuração ativa do FreeRADIUS: $CONFIG_ROOT"
+if [ "${1:-}" = "--print-config-root" ]; then
+  printf '%s\n' "$CONFIG_ROOT"
+  exit 0
+fi
 DRIVER="${DB_CONNECTION:-pgsql}"
 case "$DRIVER" in
   pgsql|postgres|postgresql) DIALECT=postgresql; DRIVER=pgsql ;;
@@ -91,7 +135,23 @@ render "/opt/radiushub-radius/templates/$DIALECT/queries.conf" "$CONFIG_ROOT/mod
 render /opt/radiushub-radius/templates/common/clients.conf "$CONFIG_ROOT/clients.conf"
 render /opt/radiushub-radius/templates/common/default "$CONFIG_ROOT/sites-enabled/default"
 
-freeradius -XC
+validation_output="$(freeradius -XC 2>&1)" || {
+  printf '%s\n' "$validation_output" >&2
+  echo "A configuração gerada do FreeRADIUS é inválida." >&2
+  exit 1
+}
+printf '%s\n' "$validation_output"
+
+if grep -Fq 'Ignoring "sql"' <<<"$validation_output"; then
+  echo "O FreeRADIUS ignorou o módulo SQL. Diretório renderizado: $CONFIG_ROOT" >&2
+  exit 1
+fi
+
+if ! grep -Eq 'Loaded module rlm_sql|Loading module "sql"|Instantiating module "sql"' <<<"$validation_output"; then
+  echo "O módulo SQL não foi carregado pelo FreeRADIUS em $CONFIG_ROOT." >&2
+  exit 1
+fi
+
 reload_interval="${RADIUS_CLIENT_RELOAD_SECONDS:-30}"
 [[ "$reload_interval" =~ ^[0-9]+$ ]] || {
   echo "RADIUS_CLIENT_RELOAD_SECONDS inválido: $reload_interval" >&2
